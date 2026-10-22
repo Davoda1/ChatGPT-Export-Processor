@@ -168,3 +168,48 @@ jobs:
       # Artifacts remain private with the repository. A successful build does
       # not create a tag or publish a GitHub release; publishing is a separate
       # maintainer action after checking all workflows for the selected commit.
+
+  windows-cold-start:
+    name: Verify Windows first launch
+    needs: package
+    runs-on: windows-2025
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - name: Check out the same source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+
+      - name: Use the declared npm version
+        run: npm install --global npm@11.9.0
+
+      # Only JavaScript test dependencies are needed. Do not download or launch
+      # another Electron runtime before testing the extracted release package.
+      - name: Install locked test dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Download this run's verified Windows package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-windows-1.0.0
+          path: test-results/download
+
+      - name: Extract the portable ZIP with Windows
+        shell: pwsh
+        run: Expand-Archive -LiteralPath 'test-results/download/ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip' -DestinationPath 'test-results/cold-start'
+
+      - name: Test the extracted native CLI as the first application launch
+        run: npm run test:packaged -- --dir test-results/cold-start
+
+      - name: Test the extracted desktop with its sandbox enabled
+        run: npm run test:desktop -- --dir test-results/cold-start

@@ -6,7 +6,7 @@ Checks cover the core conversion and validation engines, archive safety, offline
 
 The platform jobs create unpacked applications for testing. CI does not create tags, GitHub releases, installers, or downloadable release packages. Publishing is a separately approved activity.
 
-The manually dispatched **Release build** workflow creates distributable archives and a Debian package from the selected commit. It verifies extracted packages, runs the packaged application, and exercises Debian installation and removal before uploading build artifacts. These artifacts are staging inputs for a release, not automatically published releases. Source archives must come from the same committed tree, and the final release uses one consolidated `SHA256SUM.txt`.
+The manually dispatched **Release build** workflow creates distributable archives and a Debian package from the selected commit. It verifies extracted packages, runs the packaged application, and exercises Debian installation and removal before uploading build artifacts. A fresh Windows runner downloads that run's portable ZIP and tests its first launch before starting any other Electron application. These artifacts are staging inputs for a release, not automatically published releases. Source archives must come from the same committed tree, and the final release uses one consolidated `SHA256SUM.txt`.
 
 ## Workflow permissions
 
