@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="color-scheme" content="light dark">
+  <title>ChatGPT Export Processor</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="icons.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<div class="shell" id="appShell">
+  <header class="titlebar">
+    <div class="brand row"><div class="brandmark" data-icon="layers"></div><div><div class="brand-title">ChatGPT Export Processor</div><div class="brand-sub">Convert. Inspect. Preserve.</div></div></div>
+    <div class="row"><span class="top-status">Your archive, under your control</span><button class="btn quiet icon-btn" id="themeCycle" aria-label="Change theme" title="Change theme"><span data-icon="sun"></span></button><button class="btn quiet small" id="help" aria-label="Guide"><span data-icon="help"></span><span class="top-help-text">Guide</span></button></div>
+  </header>
+  <div class="app-body">
+    <nav class="sidebar" aria-label="Application navigation">
+      <div class="nav-label label">Workspace</div>
+      <button class="nav-btn" data-page="workspace" aria-label="Workspace" aria-current="page" title="Workspace"><span data-icon="grid"></span><span class="nav-text">Workspace</span></button>
+      <button class="nav-btn" data-page="overview" aria-label="Overview" title="Overview"><span data-icon="chart"></span><span class="nav-text">Overview</span></button>
+      <button class="nav-btn" data-page="findings" aria-label="Findings" title="Findings"><span data-icon="search"></span><span class="nav-text">Findings</span><span class="nav-count" id="navCount" hidden>0</span></button>
+      <button class="nav-btn" data-page="schema" aria-label="Schema watch" title="Schema watch"><span data-icon="branch"></span><span class="nav-text">Schema watch</span></button>
+      <div class="sidebar-bottom">
+        <button class="nav-btn" data-page="reports" aria-label="Reports" title="Reports"><span data-icon="file"></span><span class="nav-text">Reports</span></button>
+        <button class="nav-btn" data-page="settings" aria-label="Settings" title="Settings"><span data-icon="settings"></span><span class="nav-text">Settings</span></button>
+        <div class="side-note"><span class="row"><span class="dot accent"></span>Local processing</span><span>Public edition · davoda1</span></div>
+      </div>
+    </nav>
+    <main class="view-wrap">
+      <div class="view-head"><div><div class="eyebrow" id="eyebrow">A clear path from export to archive</div><h1 id="pageTitle">Your workspace</h1><p class="subtitle" id="pageSubtitle">Convert a ChatGPT export, or inspect an existing conversion.</p></div><button class="btn small" id="headAction" hidden><span data-icon="download"></span>Export report</button></div>
+      <section class="view active" id="view-workspace" aria-label="Workspace">
+        <div class="row between wrap"><div class="segmented" role="group" aria-label="Workflow"><button id="modeConvert" aria-pressed="true">Convert &amp; validate</button><button id="modeInspect" aria-pressed="false">Inspect existing</button></div><span class="badge ok"><span data-icon="shield"></span>Inputs stay unchanged</span></div>
+        <div class="workspace-content scroll">
+          <div class="workspace-grid">
+            <div class="panel">
+              <div class="panel-head"><h2 id="inputTitle">01 Original export</h2><label id="inspectSourceLabel" hidden><span class="sr-only">Converted input type</span><select class="field small-field" id="inspectSource"><option value="files">Separate files</option><option value="bundle">Output bundle</option></select></label><span class="badge" id="convertInputBadge">ChatGPT ZIP</span></div>
+              <div class="panel-body">
+                <div class="drop">
+                  <div class="file-glyph" data-icon="archive"></div>
+                  <div class="selected-file"><div class="file-name" id="originalName">Choose your export</div><div class="file-meta" id="originalMeta">A ZIP downloaded from ChatGPT</div></div>
+                  <div class="row file-actions"><button class="btn small" id="chooseOriginal" data-choose="original">Choose export</button><button class="btn small quiet icon-btn" data-clear="original" aria-label="Remove original export" hidden><span data-icon="close"></span></button></div>
+                </div>
+                <div id="inspectInputs" hidden>
+                  <div id="separateInputs">
+                    <div class="file-row"><span data-icon="code"></span><div class="grow"><strong class="tiny selected-name" id="indexJsonName">Converted JSON</strong></div><button class="btn small" data-choose="indexJson" aria-label="Choose converted JSON">Choose</button><button class="btn small quiet icon-btn" data-clear="indexJson" aria-label="Remove converted JSON" hidden><span data-icon="close"></span></button></div>
+                    <div class="file-row"><span data-icon="file"></span><div class="grow"><strong class="tiny selected-name" id="indexHtmlName">Converted HTML</strong></div><button class="btn small" data-choose="indexHtml" aria-label="Choose converted HTML">Choose</button><button class="btn small quiet icon-btn" data-clear="indexHtml" aria-label="Remove converted HTML" hidden><span data-icon="close"></span></button></div>
+                  </div>
+                  <div id="bundleInput" hidden><div class="file-row"><span data-icon="archive"></span><div class="grow"><strong class="tiny selected-name" id="bundleName">Processed output ZIP</strong></div><button class="btn small" data-choose="bundle" aria-label="Choose output bundle">Choose</button><button class="btn small quiet icon-btn" data-clear="bundle" aria-label="Remove output bundle" hidden><span data-icon="close"></span></button></div><p class="hint">Recognized original and converted files are read from the bundle.</p></div>
+                </div>
+                <p class="hint"><span data-icon="lock"></span><span>Files stay on this computer. Original exports are never changed.</span></p>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2 id="optionsTitle">02 Conversion options</h2><span class="badge options-badge">Writing blocks</span></div>
+              <div class="panel-body">
+                <div id="convertOptions">
+                  <label class="switch-row"><span class="grow"><strong>Standard blocks</strong><small>Preserve the structure of general writing blocks.</small></span><input class="switch" id="optionStandard" type="checkbox" checked aria-label="Convert standard writing blocks"></label>
+                  <label class="switch-row"><span class="grow"><strong>Documents</strong><small>Keep document titles and body text readable.</small></span><input class="switch" id="optionDocument" type="checkbox" checked aria-label="Convert document writing blocks"></label>
+                  <label class="switch-row"><span class="grow"><strong>Chat messages</strong><small>Convert embedded chat-message writing blocks.</small></span><input class="switch" id="optionChat" type="checkbox" checked aria-label="Convert chat-message writing blocks"></label>
+                  <div class="mini-note">Email conversion and validation are always on.</div>
+                </div>
+                <div id="inspectOptions" hidden>
+                  <label for="profile" class="tiny muted">Conversion rules</label><select id="profile" class="field full-width top-space"><option value="auto">Detect a matching profile</option><option value="all">All writing blocks</option><option value="email">Email blocks only</option></select>
+                  <p class="hint">One profile must match the entire conversion. Ambiguous matches remain visible.</p>
+                  <div class="mini-note">Read-only inspection. Missing original data means limited coverage.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel destination-strip" id="destinationStrip"><span data-icon="archive"></span><div class="grow"><span class="label">Save outputs in</span><strong class="selected-name tiny" id="outputDirName">Choose a destination folder</strong></div><button class="btn small" id="chooseOutput">Choose folder</button></div>
+          <div class="outputs-note" id="outputsNote">JSON archive · HTML viewer · output bundle · validation report</div>
+        </div>
+        <div class="inline-error" id="workspaceError" role="alert" hidden></div>
+        <div class="runbar"><div id="runHint"><p id="readiness">Choose a ChatGPT export and output folder.</p></div><div class="progress-area" id="progressArea" hidden><div class="row between tiny"><span id="phase">Preparing</span><span id="percent"></span></div><progress id="progress" aria-label="Processing progress"></progress><p class="tiny muted progress-detail" id="progressDetail"></p></div><button class="btn" id="cancelRun" hidden>Cancel</button><button class="btn primary" id="run" disabled><span data-icon="play"></span><span id="runLabel">Convert &amp; validate</span></button></div>
+      </section>
+      <section class="view" id="view-overview" aria-label="Overview"><div class="scroll overview-content stack" id="overviewContent"></div></section>
+      <section class="view" id="view-findings" aria-label="Findings">
+        <div class="filterbar"><div class="search"><span data-icon="search"></span><input type="search" id="findingSearch" placeholder="Search findings, rules, or conversation" aria-label="Search findings"></div><select class="field" id="findingSeverity" aria-label="Filter finding severity"><option value="all">All severities</option><option value="error">Confirmed issues</option><option value="warning">Review candidates</option><option value="info">Information</option></select></div>
+        <div class="findings-layout"><div class="panel findings-list"><div class="list-top" id="findingListCount">No inspection yet</div><div class="scroll" id="findingsList"></div></div><article class="panel detail" id="findingDetail" aria-label="Finding evidence"></article></div>
+      </section>
+      <section class="view" id="view-schema" aria-label="Schema watch">
+        <div class="row between wrap"><span class="badge info" id="schemaStatus">No inspection yet</span><label class="row tiny muted"><input type="checkbox" id="schemaChangesOnly" checked>Changes only</label></div>
+        <div class="panel schema-panel"><div class="panel-head"><div><h2>Changes in the export format</h2><p class="tiny muted top-space" id="baselineLabel">Compared with the bundled reviewed baseline</p></div></div><div class="table-shell grow"><table class="schema-table"><thead><tr><th scope="col">Field or feature</th><th scope="col">Observed type</th><th scope="col">Result</th><th scope="col">Occurrences</th></tr></thead><tbody id="schemaRows"></tbody></table><div class="empty" id="schemaEmpty"><span data-icon="branch"></span><h3>No inspection yet</h3><p>Run conversion or inspection to examine observed fields and types.</p></div></div><div class="schema-info"><span data-icon="info"></span><span>A new field is a review candidate, not proof of data loss. Schema recognition does not certify every future format.</span></div></div>
+      </section>
+      <section class="view" id="view-reports" aria-label="Reports"><div class="scroll settings-content stack"><div class="panel"><div class="panel-head"><h2>Keep an inspection record</h2><span class="badge" id="reportState">No inspection yet</span></div><div class="report-card"><span data-icon="shield"></span><div class="grow"><strong>Summary report</strong><p>Checks, coverage, and finding locations. Raw conversation evidence is excluded.</p></div><button class="btn small" data-export="summary" disabled>Export</button></div></div><div class="panel"><div class="panel-head"><h2>Choose a useful format</h2></div><div class="panel-body"><div class="kv"><strong>Offline HTML</strong><span>Readable results for a browser.</span></div><div class="kv"><strong>JSON</strong><span>Structured records for tools and automated checks.</span></div><div class="kv"><strong>CSV</strong><span>A findings table for a spreadsheet.</span></div><p class="note-inline">Reports describe the checks completed and their limits. They do not certify content the inspector could not compare.</p></div></div></div></section>
+      <section class="view" id="view-settings" aria-label="Settings"><div class="scroll settings-content"><div class="settings-grid"><div class="panel"><div class="panel-head"><h2>Appearance</h2></div><div class="panel-body"><p class="note-inline">System follows your operating system's light or dark appearance.</p><div class="radio-grid"><button class="theme-card" data-theme-choice="system" aria-pressed="true"><div class="theme-swatch system"></div>System</button><button class="theme-card" data-theme-choice="light" aria-pressed="false"><div class="theme-swatch"></div>Light</button><button class="theme-card" data-theme-choice="dark" aria-pressed="false"><div class="theme-swatch dark"></div>Dark</button></div><div class="setting-row"><div class="grow"><label for="density">Content density</label><p>Adjust spacing in data views.</p></div><select class="field" id="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div></div></div><div class="panel"><div class="panel-head"><h2>About</h2></div><div class="panel-body"><p class="note-inline">A local tool for converting ChatGPT exports and inspecting the results. Validation includes content preservation, conversation structure, and schema review.</p><hr class="subtle-divider"><div class="kv"><span>Version</span><strong id="appVersion">1.0.0</strong></div><div class="kv"><span>Maintainer</span><strong>davoda1</strong></div><div class="kv"><span>Network access</span><strong>None</strong></div><div class="mini-note">Your exports remain on this computer. Only appearance preferences are retained; files must be selected for each application session.</div></div></div></div></div></section>
+    </main>
+  </div>
+  <footer class="statusbar"><span class="row"><span class="dot"></span><span id="footerStatus" role="status">Starting</span></span><span class="footer-right">Local processing · originals preserved</span></footer>
+</div>
+<div class="modal-backdrop" id="modalBackdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-header"><h2 id="modalTitle"></h2><button class="btn quiet icon-btn" id="closeModal" aria-label="Close dialog"><span data-icon="close"></span></button></div><div class="modal-body" id="modalBody"></div><div class="modal-footer" id="modalFooter"></div></section></div>
+<div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

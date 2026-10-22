@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test and build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            platform: linux
+          - name: Windows
+            os: windows-2025
+            platform: win
+    env:
+      CI: 'true'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+
+      - name: Use the declared npm version
+        run: npm install --global npm@11.9.0
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install browser and Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Install browser on Windows
+        if: runner.os == 'Windows'
+        run: npx --no-install playwright install chromium
+
+      - name: Scan publication privacy
+        run: npm run test:privacy
+
+      - name: Test conversion, validation, safety, and offline viewer
+        run: npm test
+
+      - name: Test responsive desktop interface
+        run: npm run test:ui
+
+      - name: Configure the Linux Electron sandbox
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+
+      - name: Test native Linux desktop
+        if: runner.os == 'Linux'
+        env:
+          TEST_DESKTOP_DISPLAY: '1'
+        run: xvfb-run --auto-servernum npm run test:desktop
+
+      - name: Test native Windows desktop
+        if: runner.os == 'Windows'
+        run: npm run test:desktop
+
+      - name: Build and verify the native application
+        run: npm run build:${{ matrix.platform }}
+
+      - name: Configure the packaged Linux sandbox
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root dist/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
+
+      - name: Run the packaged native CLI
+        run: npm run test:packaged
+
+      - name: Test a large generated archive
+        if: runner.os == 'Linux'
+        run: npm run test:large -- --mib 64
+
+      # CI verifies unpacked applications. Release packaging and publishing
+      # require a separate, explicitly approved release process.

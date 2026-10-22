@@ -1,0 +1,97 @@
+{
+  "name": "chatgpt-export-processor",
+  "productName": "ChatGPT Export Processor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local conversion, inspection, and validation of ChatGPT exports.",
+  "author": "davoda1",
+  "license": "MIT",
+  "homepage": "https://github.com/davoda1/ChatGPT-Export-Processor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davoda1/ChatGPT-Export-Processor.git"
+  },
+  "main": "src/main/main.cjs",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "start": "electron .",
+    "cli": "node src/cli.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node scripts/test-ui.cjs",
+    "test:privacy": "node scripts/privacy-check.cjs",
+    "verify:package": "node scripts/verify-package.cjs",
+    "build:linux": "node scripts/build.cjs --platform linux",
+    "build:win": "node scripts/build.cjs --platform win",
+    "pack:linux": "node scripts/build.cjs --platform linux --packages",
+    "pack:win": "node scripts/build.cjs --platform win --packages",
+    "test:desktop": "node scripts/test-desktop.cjs",
+    "test:large": "node scripts/test-large.cjs",
+    "test:packaged": "node scripts/test-packaged.cjs"
+  },
+  "dependencies": {
+    "crc-32": "1.2.2",
+    "dompurify": "3.4.17",
+    "highlight.js": "11.12.0",
+    "marked": "18.1.1",
+    "yauzl": "3.4.0"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
+    "playwright": "1.64.1",
+    "yazl": "3.3.1",
+    "@electron/get": "5.1.0"
+  },
+  "build": {
+    "appId": "io.github.davoda1.chatgpt-export-processor",
+    "productName": "ChatGPT Export Processor",
+    "copyright": "Copyright \u00a9 2026 davoda1",
+    "asar": true,
+    "npmRebuild": false,
+    "files": [
+      "src/**/*",
+      "package.json",
+      "LICENSE",
+      "docs/THIRD-PARTY-NOTICES.md",
+      "build/icons/256x256.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": null,
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "executableName": "chatgpt-export-processor",
+      "category": "Utility",
+      "icon": "build/icons",
+      "desktop": {
+        "entry": {
+          "Name": "ChatGPT Export Processor",
+          "Comment": "Convert and inspect ChatGPT exports locally",
+          "Categories": "Utility;Development;",
+          "Terminal": false
+        }
+      },
+      "publish": null
+    },
+    "win": {
+      "target": [
+        "dir"
+      ],
+      "executableName": "ChatGPT-Export-Processor",
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true,
+      "publish": null
+    }
+  },
+  "overrides": {
+    "global-agent": "4.1.3"
+  }
+}

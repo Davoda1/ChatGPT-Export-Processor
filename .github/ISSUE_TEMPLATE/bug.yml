@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible application problem using synthetic data.
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not upload a real ChatGPT export, conversation content, credentials, private paths, or unredacted reports or screenshots. Use a minimal synthetic example.
+        For a suspected vulnerability, follow SECURITY.md instead of posting exploit details here.
+  - type: input
+    id: version
+    attributes:
+      label: Application version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system version
+      description: Include the version or distribution, without a device name or username.
+    validations:
+      required: true
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      options:
+        - Convert an original export
+        - Inspect processed files
+        - Offline viewer
+        - Command-line interface
+        - Build or installation
+        - Other interface behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic text and generic filenames. Describe any selected conversion options.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include a sanitized error message or validation rule name, if relevant.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I reviewed this report and any attachments for private content and credentials.
+          required: true

@@ -1,0 +1,961 @@
+{
+  "format": "chatgpt-export-schema-1",
+  "basis": "Field names and accepted value types only; no source records, identifiers, counts or titles.",
+  "inventory": {
+    "conversation.conversation_id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.conversation_template_id": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "conversation.create_time": {
+      "types": {
+        "number": 1
+      }
+    },
+    "conversation.current_node": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.default_model_slug": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.is_archived": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "conversation.is_do_not_remember": {
+      "types": {
+        "null": 1,
+        "boolean": 1
+      }
+    },
+    "conversation.is_read_only": {
+      "types": {
+        "null": 1
+      }
+    },
+    "conversation.is_starred": {
+      "types": {
+        "null": 1
+      }
+    },
+    "conversation.is_study_mode": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "conversation.mapping": {
+      "types": {
+        "object": 1
+      }
+    },
+    "conversation.memory_scope": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.pinned_time": {
+      "types": {
+        "null": 1
+      }
+    },
+    "conversation.plugin_ids": {
+      "types": {
+        "null": 1
+      }
+    },
+    "conversation.title": {
+      "types": {
+        "string": 1
+      }
+    },
+    "conversation.update_time": {
+      "types": {
+        "number": 1
+      }
+    },
+    "conversation.voice": {
+      "types": {
+        "null": 1
+      }
+    },
+    "node.id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "node.message": {
+      "types": {
+        "object": 1,
+        "null": 1
+      }
+    },
+    "node.parent": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "message.author": {
+      "types": {
+        "object": 1
+      }
+    },
+    "message.content": {
+      "types": {
+        "object": 1
+      }
+    },
+    "message.create_time": {
+      "types": {
+        "number": 1
+      }
+    },
+    "message.id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "message.metadata": {
+      "types": {
+        "object": 1
+      }
+    },
+    "author.name": {
+      "types": {
+        "null": 1
+      }
+    },
+    "author.role": {
+      "types": {
+        "string": 1
+      }
+    },
+    "content.content_type": {
+      "types": {
+        "string": 1
+      }
+    },
+    "content.parts": {
+      "types": {
+        "array": 1
+      }
+    },
+    "metadata.serialization_metadata": {
+      "types": {
+        "object": 1
+      }
+    },
+    "role:user": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "content_type:text": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.content_references": {
+      "types": {
+        "array": 1
+      }
+    },
+    "metadata.model_slug": {
+      "types": {
+        "string": 1
+      }
+    },
+    "metadata.parent_id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "role:assistant": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "content.content": {
+      "types": {
+        "string": 1
+      }
+    },
+    "content_type:reasoning_recap": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "content.source_analysis_msg_id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "content.thoughts": {
+      "types": {
+        "array": 1
+      }
+    },
+    "content_type:thoughts": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:cite": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.alt": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference.items": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference.prompt_text": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "reference.type": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:grouped_webpages": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.has_images": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.sources": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference_type:sources_footnote": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.async_task_title": {
+      "types": {
+        "string": 1
+      }
+    },
+    "metadata.is_async_task_result_message": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.attribution": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.icon_type": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "reference.pub_date": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference.snippet": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference.title": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference.url": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:webpage_extended": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:hidden": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.image_results": {
+      "types": {
+        "array": 1
+      }
+    },
+    "metadata.message_locale": {
+      "types": {
+        "string": 1
+      }
+    },
+    "metadata.search_result_groups": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference.attributable_index": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.attributions": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference_type:attribution": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:grouped_webpages_model_predicted_fallback": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:i": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.images": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference_type:image_v2": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:video": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.thumbnail_url": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.video_id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.video_site": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:video": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:navlist": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:nav_list": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:link": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.attachments": {
+      "types": {
+        "array": 1
+      }
+    },
+    "content_type:multimodal_text": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "part.asset_pointer": {
+      "types": {
+        "string": 1
+      }
+    },
+    "part.content_type": {
+      "types": {
+        "string": 1
+      }
+    },
+    "part.fovea": {
+      "types": {
+        "null": 1
+      }
+    },
+    "part.height": {
+      "types": {
+        "number": 1
+      }
+    },
+    "part.metadata": {
+      "types": {
+        "object": 1,
+        "null": 1
+      }
+    },
+    "part.size_bytes": {
+      "types": {
+        "number": 1
+      }
+    },
+    "part.width": {
+      "types": {
+        "number": 1
+      }
+    },
+    "part_type:image_asset_pointer": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.asset_pointer_links": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference.clicked_from_title": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.clicked_from_url": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:image_inline": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:product_entity": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:product_entity": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:products": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.cite_map": {
+      "types": {
+        "object": 1
+      }
+    },
+    "reference.products": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference_type:products": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.fallback_items": {
+      "types": {
+        "null": 1,
+        "array": 1
+      }
+    },
+    "marker:businesses_map": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.business_fallbacks": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference.businesses": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference.render_fallbacks": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:businesses_map": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.domains": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference_type:navigation": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.targeted_reply_label": {
+      "types": {
+        "string": 1
+      }
+    },
+    "marker:filecite": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.cloud_doc_url": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "reference.fff_metadata": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference.id": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference.input_pointer": {
+      "types": {
+        "object": 1
+      }
+    },
+    "reference.name": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference.source": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:file": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.inline_carousel": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.medical_file_reference": {
+      "types": {
+        "object": 1
+      }
+    },
+    "metadata.async_task_original_message_id": {
+      "types": {
+        "string": 1
+      }
+    },
+    "marker:entity": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.entity_data": {
+      "types": {
+        "null": 1,
+        "object": 1
+      }
+    },
+    "reference.extra_params": {
+      "types": {
+        "null": 1,
+        "object": 1
+      }
+    },
+    "reference.metadata": {
+      "types": {
+        "null": 1,
+        "object": 1
+      }
+    },
+    "reference_type:entity": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:image_group": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:entity_metadata": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:image_group": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:alt_text": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.async_completion_message": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.connector_id": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "marker:product": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.render_as": {
+      "types": {
+        "string": 1,
+        "null": 1
+      }
+    },
+    "reference_type:product": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:link_title": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:link_title": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:map": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.entities": {
+      "types": {
+        "array": 1
+      }
+    },
+    "reference_type:map": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "writing:email": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.drug_file_reference": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference.entity_type": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:entity_metadata": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.branching_from_conversation_title": {
+      "types": {
+        "string": 1
+      }
+    },
+    "metadata.code_blocks": {
+      "types": {
+        "object": 1
+      }
+    },
+    "reference.notes": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference.entity_index": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference.page_range_end": {
+      "types": {
+        "null": 1,
+        "number": 1
+      }
+    },
+    "reference.page_range_start": {
+      "types": {
+        "null": 1,
+        "number": 1
+      }
+    },
+    "reference.prefix": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "writing:standard": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.markdown_context": {
+      "types": {
+        "string": 1
+      }
+    },
+    "metadata.conversation_context_citation_metadata": {
+      "types": {
+        "array": 1
+      }
+    },
+    "writing:chat_message": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.library_artifact_type": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "reference.library_file_id": {
+      "types": {
+        "null": 1,
+        "string": 1
+      }
+    },
+    "metadata.tool_icons": {
+      "types": {
+        "array": 1
+      }
+    },
+    "marker:genui": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "genui:charts_widget_v2": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference_type:client_defined_widget": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:imagegroup": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.view_state": {
+      "types": {
+        "object": 1
+      }
+    },
+    "genui:suggest_automation": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.dil": {
+      "types": {
+        "object": 1
+      }
+    },
+    "reference.dil_url": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.dil_version": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.estimated_heights": {
+      "types": {
+        "null": 1,
+        "object": 1
+      }
+    },
+    "reference.placement_type": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference.schema_hash": {
+      "types": {
+        "string": 1
+      }
+    },
+    "reference_type:dil": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "widget:suggest_automation": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "writing:document": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:memcite": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "genui:chart": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.automation_title": {
+      "types": {
+        "string": 1
+      }
+    },
+    "genui:map_widget": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:url": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "reference.logo": {
+      "types": {
+        "null": 1
+      }
+    },
+    "reference_type:url": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "marker:visualize": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "metadata.error_metadata": {
+      "types": {
+        "object": 1
+      }
+    },
+    "reference_type:file_navlist": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "genui:opaque": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "widget:currency_converter_widget_with_source": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "genui:citation": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "genui:refs": {
+      "types": {
+        "boolean": 1
+      }
+    },
+    "node.children": {
+      "types": {
+        "array": 1
+      }
+    }
+  }
+}
