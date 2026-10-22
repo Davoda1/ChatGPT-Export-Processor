@@ -70,6 +70,10 @@ jobs:
       - name: Build release packages
         run: npm run pack:${{ matrix.platform }}
 
+      - name: Test the original Windows native CLI
+        if: runner.os == 'Windows'
+        run: npm run test:packaged -- --dir dist/win-unpacked
+
       - name: Verify extracted archive against the build
         run: node scripts/test-release.cjs --archive dist/${{ matrix.archive }} --reference dist/${{ matrix.unpacked }} --destination test-results/release
 

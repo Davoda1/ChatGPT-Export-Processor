@@ -8,6 +8,25 @@ const assert = require('node:assert/strict');
 const {conversation, fixtureZip} = require('../tests/helpers/conversion.cjs');
 const run = promisify(execFile);
 
+async function runNative(stage, executable, args, options) {
+  try {return await run(executable, args, options);}
+  catch (error) {
+    // execFile's default message embeds the full command and fixture paths.
+    // Record loader/exit diagnostics without command arguments or user data.
+    const code = Number.isInteger(error.code) ? error.code : null;
+    const diagnostics = {
+      exitCode: code,
+      windowsStatus: process.platform === 'win32' && code !== null ? '0x' + (code >>> 0).toString(16).padStart(8, '0') : null,
+      systemError: typeof error.code === 'string' && /^E[A-Z0-9_]+$/.test(error.code) ? error.code : null,
+      signal: typeof error.signal === 'string' && /^SIG[A-Z0-9]+$/.test(error.signal) ? error.signal : null,
+      killed: Boolean(error.killed),
+      stdoutBytes: Buffer.byteLength(error.stdout || ''),
+      stderrBytes: Buffer.byteLength(error.stderr || ''),
+    };
+    throw new Error(`Native packaged CLI ${stage} failed: ${JSON.stringify(diagnostics)}`);
+  }
+}
+
 async function main() {
   if (!['linux', 'win32'].includes(process.platform)) throw new Error('This test targets Windows and Linux native packages.');
   const args = process.argv.slice(2);
@@ -29,9 +48,9 @@ async function main() {
     // Explicit headless flags are needed before Chromium's platform startup.
     // The privileged-container sandbox exception is confined to this test.
     const flags = process.platform === 'linux' ? ['--ozone-platform=headless', '--disable-gpu', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : [])] : [];
-    const version = await run(executable, [...flags, '--cli', '--version'], {env, timeout: 30000});
+    const version = await runNative('version', executable, [...flags, '--cli', '--version'], {env, timeout: 30000});
     assert.equal(version.stdout.trim(), '1.0.0');
-    await run(executable, [...flags, '--cli', 'convert', input, '--output-dir', output], {env, timeout: 60000});
+    await runNative('conversion', executable, [...flags, '--cli', 'convert', input, '--output-dir', output], {env, timeout: 60000});
     const directories = await fs.readdir(output);
     assert.equal(directories.length, 1);
     const generated = path.join(output, directories[0]);
@@ -40,7 +59,7 @@ async function main() {
     assert.equal(report.coverage.complete, true);
     assert.deepEqual(await fs.readFile(input), bytes);
     const inspectionEntrypoint = process.platform === 'linux' ? path.join(directory, 'bin', 'chatgpt-export-processor') : executable;
-    const inspection = await run(inspectionEntrypoint, [...flags, '--cli', 'inspect', '--original', input, '--bundle', path.join(generated, 'chatgpt-export-processed.zip'), '--profile', 'all'], {env, timeout: 60000});
+    const inspection = await runNative('inspection', inspectionEntrypoint, [...flags, '--cli', 'inspect', '--original', input, '--bundle', path.join(generated, 'chatgpt-export-processed.zip'), '--profile', 'all'], {env, timeout: 60000});
     assert.match(inspection.stdout, /Passed/);
     console.log(JSON.stringify({passed: true, platform: process.platform, version: version.stdout.trim(), asarRuntime: true, nativeBinary: true, binSymlink: process.platform === 'linux', conversion: 'PASS', inspection: 'PASS', sourceUnchanged: true}, null, 2));
   } finally { await fs.rm(temporary, {recursive: true, force: true, maxRetries: 5, retryDelay: 200}); }
