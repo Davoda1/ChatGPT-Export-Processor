@@ -8,6 +8,7 @@ const {pathToFileURL} = require('node:url');
 const {JobController} = require('./job-controller.cjs');
 const {loadPreferences, savePreferences, normalizePreferences} = require('./preferences.cjs');
 const {validateRole, selectedFile, publicSelection, jobSpec, writeReportExclusive} = require('./file-policy.cjs');
+const {exitAfterReady} = require('./exit.cjs');
 
 // Chromium launch switches may precede application arguments in packaged builds.
 const cliIndex = process.argv.indexOf('--cli');
@@ -138,7 +139,7 @@ else {
   app.whenReady().then(async () => {
     if (cli) {
       const code = await require('../cli.cjs').runCli(args.slice(1));
-      app.exit(code); return;
+      await exitAfterReady(app, code); return;
     }
     app.setAppUserModelId('io.github.davoda1.chatgpt-export-processor');
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
@@ -147,6 +148,6 @@ else {
     const allowedRoot = pathToFileURL(path.join(__dirname, '../renderer/')).href;
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => callback({cancel: !details.url.startsWith(allowedRoot)}));
     registerIPC(); createWindow();
-  }).catch(error => { console.error('Application startup failed:', error.message); app.exit(1); });
+  }).catch(error => { console.error('Application startup failed:', error.message); void exitAfterReady(app, 1); });
   app.on('window-all-closed', () => app.quit());
 }

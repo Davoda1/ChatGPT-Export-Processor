@@ -208,7 +208,10 @@ jobs:
         shell: pwsh
         run: Expand-Archive -LiteralPath 'test-results/download/ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip' -DestinationPath 'test-results/cold-start'
 
-      - name: Test the extracted native CLI as the first application launch
+      - name: Test cold and repeated native CLI startup and exit
+        run: node scripts/test-cli-lifecycle.cjs --dir test-results/cold-start
+
+      - name: Test the extracted native CLI conversion and inspection
         run: npm run test:packaged -- --dir test-results/cold-start
 
       - name: Test the extracted desktop with its sandbox enabled
