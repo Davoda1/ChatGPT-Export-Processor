@@ -17,6 +17,20 @@ The input format is a ChatGPT export. Other chat providers and arbitrary HTML do
 
 Processing is local. No account, credentials, remote service, upload destination, or personal infrastructure configuration is needed. Application updates are manual.
 
+## Screenshots
+
+The running desktop application, shown with synthetic data. The review candidates are deliberate examples; no personal exports are pictured.
+
+**Inspection overview · dark appearance**
+
+![Dark inspection overview showing preservation checks, coverage, and review candidates](docs/extras/overview-dark.png)
+
+**Findings and evidence · light appearance**
+
+![Light findings view showing an empty reference in synthetic conversation content](docs/extras/findings-light.png)
+
+[View all six screenshots, including Schema watch and both appearances](docs/extras/README.md).
+
 ## Download and install
 
 Download **v1.0.0** from [GitHub Releases](https://github.com/davoda1/ChatGPT-Export-Processor/releases/tag/v1.0.0). Windows and Linux packages target x64/amd64 systems.
