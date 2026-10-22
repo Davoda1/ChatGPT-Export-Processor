@@ -66,9 +66,15 @@ test('a ZIP selected as source and bundle is read once and supplies each role on
 });
 test('explicit converted files override converted data inside a source ZIP', async t => {
   const source=file(t,[['conversations.json','[]'],['conversations-index.json','[]'],['chat-index.html','var jsonData = [];</html>']]);
-  const selected=path.join(path.dirname(source),'selected.json');fs.writeFileSync(selected,'[]');
+  const selected=path.join(path.dirname(source),'selected.json');
+  const selectedRecords=[{id:'explicit-selection',mapping:{}}];
+  fs.writeFileSync(selected,JSON.stringify(selectedRecords));
   const result=await resolveInputs({original:source,indexJson:selected});t.after(()=>result.cleanup());
-  // Windows temporary directories can use a short-name alias; selection is
-  // compared against the canonical file that the input resolver actually opens.
-  assert.equal(result.byRole.indexJson.length,1);assert.equal(result.byRole.indexJson[0].file,fs.realpathSync(selected));assert.equal(result.byRole.indexHtml,undefined);
+  // The native asynchronous realpath API expands Windows short-name aliases;
+  // the JavaScript synchronous implementation may retain them.
+  const canonicalSelected=await fs.promises.realpath(selected);
+  assert.equal(result.byRole.indexJson.length,1);
+  assert.equal(result.byRole.indexJson[0].file,canonicalSelected);
+  assert.deepEqual(JSON.parse(fs.readFileSync(result.byRole.indexJson[0].file,'utf8')),selectedRecords);
+  assert.equal(result.byRole.indexHtml,undefined);
 });

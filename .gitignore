@@ -12,3 +12,26 @@ test-results/
 !.env.example
 Thumbs.db
 .DS_Store
+
+# Keep original exports, generated reports, and release packages out of source.
+*.zip
+*.tar
+*.tgz
+*.gz
+*.deb
+*.exe
+conversations.json
+conversations-[0-9]*.json
+conversations-index.json
+chat.html
+chat.htm
+chat-index.html
+chat-index.htm
+user.json
+message_feedback.json
+shared_conversations.json
+model_comparisons.json
+validation-report.json
+validation-report.html
+validation-report.csv
+SHA256SUM.txt
