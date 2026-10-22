@@ -1,6 +1,6 @@
 # Continuous integration
 
-The CI workflow validates pull requests and pushes to `main`, and supports manual runs. Windows and Linux jobs use the same pinned Node.js and npm versions and install dependencies from the lockfile with `npm ci`.
+The CI workflow validates pull requests and pushes to `master`, and supports manual runs. Windows and Linux jobs use the same pinned Node.js and npm versions and install dependencies from the lockfile with `npm ci`.
 
 Checks cover the core conversion and validation engines, archive safety, offline viewer, responsive workbench, native Electron integration, publication privacy, and packaged native command-line execution. All conversation fixtures are synthetic. A separate dependency audit checks the complete locked dependency graph.
 
@@ -18,7 +18,7 @@ Dependabot proposes npm and GitHub Actions updates. Updates require review and s
 
 Before merging, inspect the `Test and build (Linux)`, `Test and build (Windows)`, and `Dependency audit` results for the exact proposed commit. A successful cross-build does not replace the native Windows check.
 
-Require these checks on pull requests, disallow branch deletion and force pushes, require resolved review conversations, and retain a linear `main` history. A sole maintainer can use a zero-approval pull request rule while still requiring successful checks. Publication of a new repository requires a separate privacy review of its complete history, release files, and metadata.
+Require these checks on pull requests, disallow branch deletion and force pushes, require resolved review conversations, and retain a linear `master` history. A sole maintainer can use a zero-approval pull request rule while still requiring successful checks. Publication of a new repository requires a separate privacy review of its complete history, release files, and metadata.
 
 GitHub's private vulnerability reporting and some hosted security features depend on repository visibility and account entitlements. The presence of `SECURITY.md` does not imply that those features are enabled. Review their availability when changing visibility; never change visibility merely to enable a feature.
 
