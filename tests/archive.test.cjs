@@ -68,5 +68,7 @@ test('explicit converted files override converted data inside a source ZIP', asy
   const source=file(t,[['conversations.json','[]'],['conversations-index.json','[]'],['chat-index.html','var jsonData = [];</html>']]);
   const selected=path.join(path.dirname(source),'selected.json');fs.writeFileSync(selected,'[]');
   const result=await resolveInputs({original:source,indexJson:selected});t.after(()=>result.cleanup());
-  assert.equal(result.byRole.indexJson.length,1);assert.equal(result.byRole.indexJson[0].file,selected);assert.equal(result.byRole.indexHtml,undefined);
+  // Windows temporary directories can use a short-name alias; selection is
+  // compared against the canonical file that the input resolver actually opens.
+  assert.equal(result.byRole.indexJson.length,1);assert.equal(result.byRole.indexJson[0].file,fs.realpathSync(selected));assert.equal(result.byRole.indexHtml,undefined);
 });

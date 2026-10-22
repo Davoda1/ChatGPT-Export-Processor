@@ -1,6 +1,6 @@
 # Building and verification
 
-Use Node.js 24 and npm 11 with the included lockfile. `npm ci` is the authoritative dependency installation command. Browser tests also require `npx playwright install chromium` or an explicitly configured `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Development tools download Electron during installation/build; the application itself does not use the network for conversion or inspection.
+Use Node.js 24 and npm 11 with the included lockfile. `npm ci` is the authoritative dependency installation command. Run `npx --no-install install-electron` to install the pinned native Electron runtime explicitly; otherwise the development launcher downloads it on first use. Browser tests also require `npx playwright install chromium` or an explicitly configured `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Runtime setup and packaging tools download their required binaries; the application itself does not use the network for conversion or inspection.
 
 ## Validation builds
 

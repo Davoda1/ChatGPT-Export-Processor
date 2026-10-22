@@ -49,6 +49,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Download the pinned Electron runtime
+        run: npx --no-install install-electron
+
       - name: Install browser and Linux desktop dependencies
         if: runner.os == 'Linux'
         run: npx --no-install playwright install --with-deps chromium
