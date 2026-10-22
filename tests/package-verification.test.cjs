@@ -5,6 +5,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
+const {finished} = require('node:stream/promises');
 const asar = require('@electron/asar');
 const {verify} = require('../scripts/verify-package.cjs');
 
@@ -25,7 +26,10 @@ async function fixture(t, options = {}) {
     await fs.mkdir(path.join(source, 'nested'), {recursive: true});
     await fs.writeFile(path.join(source, 'nested', 'deploy.cjs'), '// Forbidden legacy fixture\n');
   }
-  await asar.createPackage(source, path.join(directory, 'resources', 'app.asar'));
+  // ASAR 3.4.1 resolves with its writable after end(), before queued bytes
+  // necessarily reach disk. Verification must start after the stream closes.
+  const output = await asar.createPackage(source, path.join(directory, 'resources', 'app.asar'));
+  await finished(output);
   return directory;
 }
 

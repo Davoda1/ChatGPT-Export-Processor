@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {pipeline} = require('node:stream/promises');
+const {finished, pipeline} = require('node:stream/promises');
 const {build, Platform, Arch} = require('electron-builder');
 const {verify} = require('./verify-package.cjs');
 const root = path.resolve(__dirname, '..');
@@ -28,6 +28,20 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {cwd: root, stdio: 'inherit', ...options});
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited with status ${result.status}.`);
+}
+async function withAsarWriteCompletion(task) {
+  // The pinned ASAR 3.4.1 writer returns after end(), before its destination
+  // finishes. Its internal export is looked up for each call, unlike cached
+  // ESM named exports, so this build-scoped wrapper can be fully restored.
+  const disk = require('@electron/asar/lib/disk');
+  const original = disk.streamFilesystem;
+  disk.streamFilesystem = async (...args) => {
+    const output = await original(...args);
+    await finished(output);
+    return output;
+  };
+  try { return await task(); }
+  finally { disk.streamFilesystem = original; }
 }
 async function addDirectory(zip, directory, prefix = '') {
   for (const item of (await fsp.readdir(directory, {withFileTypes: true})).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
@@ -108,7 +122,7 @@ async function main() {
   const electronZip = await downloadArtifact({version: packageInfo.devDependencies.electron, artifactName: 'electron', platform: targetPlatform === 'win' ? 'win32' : 'linux', arch: 'x64'});
   // The target directory belongs to this build; remove interrupted-build leftovers.
   await fsp.rm(directory, {recursive: true, force: true});
-  await build({projectDir: root, config: {...packageInfo.build, electronDist: electronZip}, targets: platform.createTarget(['dir'], Arch.x64), publish: 'never'});
+  await withAsarWriteCompletion(() => build({projectDir: root, config: {...packageInfo.build, electronDist: electronZip}, targets: platform.createTarget(['dir'], Arch.x64), publish: 'never'}));
   // A verified stock archive passed as electronDist retains the default app.
   // Only the renamed application entrypoint and its own ASAR are shipped.
   for (const stock of [targetPlatform === 'win' ? 'electron.exe' : 'electron', 'version', path.join('resources', 'default_app.asar')]) await fsp.rm(path.join(directory, stock), {force: true});
@@ -139,4 +153,4 @@ if (require.main === module) main().catch(error => {
   // exitCode after the build promise rejects, so preserve failure at exit too.
   process.on('exit', () => { process.exitCode = 1; });
 });
-module.exports = {zipDirectory, createDeb};
+module.exports = {zipDirectory, createDeb, withAsarWriteCompletion};
