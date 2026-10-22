@@ -39,7 +39,7 @@
     "yauzl": "3.4.0"
   },
   "devDependencies": {
-    "@electron/asar": "3.4.1",
+    "@electron/asar": "4.3.1",
     "electron": "45.0.0",
     "electron-builder": "26.15.3",
     "playwright": "1.64.1",
