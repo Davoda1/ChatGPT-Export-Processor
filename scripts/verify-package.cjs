@@ -23,12 +23,22 @@ function verify(dir, platform) {
   }
   const asar = require('@electron/asar');
   const archive = path.join(dir, 'resources', 'app.asar');
-  const icon = asar.extractFile(archive, 'build/icons/256x256.png');
-  if (!icon.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || icon.readUInt32BE(16) !== 256 || icon.readUInt32BE(20) !== 256) throw new Error('Packaged window icon is missing or invalid.');
-  const manifest = JSON.parse(asar.extractFile(archive, 'package.json'));
+  // ASAR lookups use the host path separator, including for archive members.
+  // Normalize only the inventory used for portable policy comparisons.
+  const names = asar.listPackage(archive).map(name => name.split(path.sep).join('/'));
+  const members = new Set(names);
+  function requiredFile(name) {
+    if (!members.has('/' + name)) throw new Error('Required packaged file is missing: ' + name);
+    const nativeName = path.join(...name.split('/'));
+    const info = asar.statFile(archive, nativeName, false);
+    if ('files' in info || 'link' in info || info.unpacked) throw new Error('Required packaged entry must be a regular archived file: ' + name);
+    return asar.extractFile(archive, nativeName, false);
+  }
+  const icon = requiredFile('build/icons/256x256.png');
+  if (icon.length < 24 || !icon.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || icon.readUInt32BE(16) !== 256 || icon.readUInt32BE(20) !== 256) throw new Error('Packaged window icon is missing or invalid.');
+  const manifest = JSON.parse(requiredFile('package.json'));
   if (manifest.version !== '1.0.0' || manifest.author !== 'davoda1' || manifest.name !== 'chatgpt-export-processor') throw new Error('Unexpected packaged identity.');
   if (Object.keys(manifest.dependencies || {}).some(x => /ssh|ftp/.test(x))) throw new Error('Unexpected network deployment dependency.');
-  const names = asar.listPackage(path.join(dir, 'resources', 'app.asar'));
   const forbidden = names.filter(x => /(?:^|\/)(?:configs(?:\.example)?\.txt|deploy\.cjs|\.env|\.git)(?:\/|$)/i.test(x));
   if (forbidden.length) throw new Error('Private or legacy deployment files were packaged.');
   return {platform, executable: path.basename(executable), version: manifest.version, files: names.length};

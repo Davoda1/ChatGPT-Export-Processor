@@ -132,5 +132,11 @@ async function main() {
     await createDeb(directory, outDir);
   }
 }
-if (require.main === module) main().catch(error => {console.error(error.message); process.exitCode = 1;});
+if (require.main === module) main().catch(error => {
+  console.error(error.message);
+  process.exitCode = 1;
+  // Match electron-builder's failure handling: its Windows cleanup can replace
+  // exitCode after the build promise rejects, so preserve failure at exit too.
+  process.on('exit', () => { process.exitCode = 1; });
+});
 module.exports = {zipDirectory, createDeb};
