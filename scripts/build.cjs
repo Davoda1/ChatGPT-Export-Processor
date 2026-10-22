@@ -8,6 +8,22 @@ const {build, Platform, Arch} = require('electron-builder');
 const {verify} = require('./verify-package.cjs');
 const root = path.resolve(__dirname, '..');
 const packageInfo = require('../package.json');
+const archiveEpoch = 1767225600;
+const linuxDependencies = [
+  'libasound2t64 (>= 1.0.17) | libasound2 (>= 1.0.17)',
+  'libatk-bridge2.0-0t64 (>= 2.5.3) | libatk-bridge2.0-0 (>= 2.5.3)',
+  'libatk1.0-0t64 (>= 2.32.0) | libatk1.0-0 (>= 2.32.0)',
+  'libatspi2.0-0t64 (>= 2.9.90) | libatspi2.0-0 (>= 2.9.90)',
+  'libc6 (>= 2.34)', 'libcairo2 (>= 1.14.0)',
+  'libcups2t64 (>= 1.7.0) | libcups2 (>= 1.7.0)',
+  'libdbus-1-3 (>= 1.9.14)', 'libexpat1 (>= 2.1~beta3)', 'libgbm1 (>= 21.1.0)', 'libgcc-s1 (>= 4.2)',
+  'libglib2.0-0t64 (>= 2.50.0) | libglib2.0-0 (>= 2.50.0)',
+  'libgtk-3-0t64 (>= 3.9.10) | libgtk-3-0 (>= 3.9.10)',
+  'libnspr4 (>= 2:4.9-2~)', 'libnss3 (>= 2:3.30)', 'libpango-1.0-0 (>= 1.14.0)', 'libudev1 (>= 183)',
+  'libx11-6 (>= 2:1.4.99.1)', 'libxcb1 (>= 1.9.2)', 'libxcomposite1 (>= 1:0.4.5)',
+  'libxdamage1 (>= 1:1.1)', 'libxext6', 'libxfixes3', 'libxkbcommon0 (>= 0.5.0)', 'libxrandr2',
+  'libxss1', 'libxtst6', 'xdg-utils',
+];
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {cwd: root, stdio: 'inherit', ...options});
   if (result.error) throw result.error;
@@ -29,13 +45,27 @@ async function zipDirectory(directory, target) {
   zip.end();
   await task;
 }
+async function installedSize(directory) {
+  let kibibytes = 1;
+  for (const entry of await fsp.readdir(directory, {withFileTypes: true})) {
+    const file = path.join(directory, entry.name);
+    kibibytes += entry.isDirectory() ? await installedSize(file) : Math.max(1, Math.ceil((await fsp.lstat(file)).size / 1024));
+  }
+  return kibibytes;
+}
 async function createDeb(directory, outDir) {
   if (process.platform !== 'linux') throw new Error('Debian packaging requires Linux and dpkg-deb.');
   const staging = await fsp.mkdtemp(path.join(outDir, 'deb-stage-'));
   try {
+    // The data archive includes this root directory; mkdtemp's private mode
+    // must not become a restrictive permission on the installation root.
+    await fsp.chmod(staging, 0o755);
     const install = path.join(staging, 'opt', 'chatgpt-export-processor');
     await fsp.mkdir(path.dirname(install), {recursive: true});
     await fsp.cp(directory, install, {recursive: true, verbatimSymlinks: true});
+    // dpkg records root ownership below. The fallback sandbox must arrive with
+    // its required permissions, without an installer or launcher script.
+    await fsp.chmod(path.join(install, 'chrome-sandbox'), 0o4755);
     await fsp.mkdir(path.join(staging, 'usr', 'bin'), {recursive: true});
     await fsp.symlink('../../opt/chatgpt-export-processor/chatgpt-export-processor', path.join(staging, 'usr', 'bin', 'chatgpt-export-processor'));
     const appDir = path.join(staging, 'usr', 'share', 'applications');
@@ -50,12 +80,13 @@ async function createDeb(directory, outDir) {
     await fsp.mkdir(docDir, {recursive: true});
     await fsp.copyFile(path.join(root, 'LICENSE'), path.join(docDir, 'copyright'));
     await fsp.copyFile(path.join(root, 'README.md'), path.join(docDir, 'README.md'));
+    const sizeKiB = await installedSize(staging);
     await fsp.mkdir(path.join(staging, 'DEBIAN'));
-    const control = `Package: chatgpt-export-processor\nVersion: ${packageInfo.version}\nArchitecture: amd64\nSection: utils\nPriority: optional\nMaintainer: davoda1\nHomepage: ${packageInfo.homepage}\nDepends: libgtk-3-0, libnss3, libgbm1, libasound2t64 | libasound2, libatk-bridge2.0-0, libxss1, libxtst6, xdg-utils\nDescription: Local ChatGPT export conversion and validation\n Convert export archives and inspect conversion evidence without a server.\n`;
+    const control = `Package: chatgpt-export-processor\nVersion: ${packageInfo.version}\nArchitecture: amd64\nSection: utils\nPriority: optional\nMaintainer: davoda1\nHomepage: ${packageInfo.homepage}\nInstalled-Size: ${sizeKiB}\nDepends: ${linuxDependencies.join(', ')}\nDescription: Local ChatGPT export conversion and validation\n Convert export archives and inspect conversion evidence without a server.\n`;
     await fsp.writeFile(path.join(staging, 'DEBIAN', 'control'), control, {mode: 0o644});
     const target = path.join(outDir, `chatgpt-export-processor_${packageInfo.version}_amd64.deb`);
     if (fs.existsSync(target)) throw new Error('Package already exists; move it before rebuilding.');
-    run('dpkg-deb', ['--root-owner-group', '--build', staging, target]);
+    run('dpkg-deb', ['--root-owner-group', '-Zxz', '--threads-max=2', '--build', staging, target], {env: {...process.env, SOURCE_DATE_EPOCH: String(archiveEpoch)}});
     return target;
   } finally { await fsp.rm(staging, {recursive: true, force: true}); }
 }
@@ -81,6 +112,10 @@ async function main() {
   // A verified stock archive passed as electronDist retains the default app.
   // Only the renamed application entrypoint and its own ASAR are shipped.
   for (const stock of [targetPlatform === 'win' ? 'electron.exe' : 'electron', 'version', path.join('resources', 'default_app.asar')]) await fsp.rm(path.join(directory, stock), {force: true});
+  for (const [source, target] of [
+    ['README.md', 'README.md'], ['LICENSE', 'LICENSE-ChatGPT-Export-Processor.txt'],
+    ['docs/BUILDING.md', 'BUILDING.md'], ['docs/THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.md'],
+  ]) await fsp.copyFile(path.join(root, source), path.join(directory, target));
   if (targetPlatform === 'linux') {
     await fsp.mkdir(path.join(directory, 'bin'), {recursive: true});
     const link = path.join(directory, 'bin', 'chatgpt-export-processor');
@@ -93,7 +128,7 @@ async function main() {
   else {
     const target = path.join(outDir, `ChatGPT-Export-Processor-${packageInfo.version}-Linux-amd64.tar.gz`);
     if (fs.existsSync(target)) throw new Error('Archive already exists; move it before rebuilding.');
-    run('tar', ['-czf', target, '-C', directory, '.']);
+    run('tar', ['--sort=name', '--format=gnu', `--mtime=@${archiveEpoch}`, '--owner=0', '--group=0', '--numeric-owner', '--mode=u+rwX,go+rX,go-w,a-s', '-czf', target, '-C', directory, '.']);
     await createDeb(directory, outDir);
   }
 }

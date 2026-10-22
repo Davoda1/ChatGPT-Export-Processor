@@ -6,6 +6,8 @@ Checks cover the core conversion and validation engines, archive safety, offline
 
 The platform jobs create unpacked applications for testing. CI does not create tags, GitHub releases, installers, or downloadable release packages. Publishing is a separately approved activity.
 
+The manually dispatched **Release build** workflow creates distributable archives and a Debian package from the selected commit. It verifies extracted packages, runs the packaged application, and exercises Debian installation and removal before uploading build artifacts. These artifacts are staging inputs for a release, not automatically published releases. Source archives must come from the same committed tree, and the final release uses one consolidated `SHA256SUM.txt`.
+
 ## Workflow permissions
 
 Workflows request read access to repository contents. They use GitHub-owned actions pinned to complete commit hashes, disable persisted checkout credentials, and do not use personal access tokens. Pull request code is never executed through `pull_request_target`.
@@ -16,7 +18,7 @@ Dependabot proposes npm and GitHub Actions updates. Updates require review and s
 
 Before merging, inspect the `Test and build (Linux)`, `Test and build (Windows)`, and `Dependency audit` results for the exact proposed commit. A successful cross-build does not replace the native Windows check.
 
-Keep repository visibility private until the publication review is complete. Enable required status checks and disallow branch deletion and force pushes when the account plan supports protection of private repositories. If GitHub cannot enforce these rules, successful checks remain a maintainer requirement rather than a server-enforced gate.
+Require these checks on pull requests, disallow branch deletion and force pushes, require resolved review conversations, and retain a linear `main` history. A sole maintainer can use a zero-approval pull request rule while still requiring successful checks. Publication of a new repository requires a separate privacy review of its complete history, release files, and metadata.
 
 GitHub's private vulnerability reporting and some hosted security features depend on repository visibility and account entitlements. The presence of `SECURITY.md` does not imply that those features are enabled. Review their availability when changing visibility; never change visibility merely to enable a feature.
 

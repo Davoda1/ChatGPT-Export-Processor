@@ -17,6 +17,21 @@ The input format is a ChatGPT export. Other chat providers and arbitrary HTML do
 
 Processing is local. No account, credentials, remote service, upload destination, or personal infrastructure configuration is needed. Application updates are manual.
 
+## Download and install
+
+Download **v1.0.0** from [GitHub Releases](https://github.com/davoda1/ChatGPT-Export-Processor/releases/tag/v1.0.0). Windows and Linux packages target x64/amd64 systems.
+
+| Package | Installation |
+| --- | --- |
+| Windows portable ZIP | Extract the complete ZIP into a folder and run `ChatGPT-Export-Processor.exe` at its root. Keep the accompanying files together. |
+| Debian/Ubuntu `.deb` | Install with `sudo apt install ./chatgpt-export-processor_1.0.0_amd64.deb`, then open the application from the desktop menu. |
+| Linux portable `.tar.gz` | Extract into an empty folder and run `bin/chatgpt-export-processor`. The entrypoint is a symlink to the native executable. |
+| Source ZIP or `.tar.gz` | Follow the source build instructions below. Dependencies are installed separately. |
+
+Use the release's single `SHA256SUM.txt` to verify downloads. On Linux, run `sha256sum --ignore-missing -c SHA256SUM.txt` in the download folder. On Windows, compare the SHA-256 reported by PowerShell's `Get-FileHash` with the corresponding entry.
+
+The Windows executable is unsigned and may show an unknown-publisher prompt. Linux portable execution requires working Chromium sandbox support; use the Debian package on supported Debian/Ubuntu systems that restrict unprivileged user namespaces. See [platform and sandbox details](docs/BUILDING.md).
+
 ## Convert an export
 
 1. Select **Convert & validate** in the workspace.
@@ -76,6 +91,7 @@ The command-line interface uses the same processing and validation engines as th
 
 ```sh
 node src/cli.cjs --help
+mkdir output
 node src/cli.cjs convert export.zip --output-dir output
 node src/cli.cjs inspect --original export.zip --json conversations-index.json --html chat-index.html
 node src/cli.cjs inspect --bundle chatgpt-export-processed.zip --report report.json --format json
@@ -120,4 +136,4 @@ See [BUILDING.md](docs/BUILDING.md), [CI.md](docs/CI.md), [SECURITY.md](SECURITY
 
 ## Project status
 
-This source is the first public-edition implementation at version 1.0.0. GitHub Actions validates the source and native Windows and Linux builds. The repository remains private until the maintainer chooses to make it public. Release packaging and publication are separate from continuous integration.
+This is the first public edition at version 1.0.0. GitHub Actions validates the source and native Windows and Linux builds. Release packaging and publication are separate from continuous integration.

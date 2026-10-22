@@ -10,4 +10,4 @@
 - Removed personal infrastructure dependencies and private deployment functionality.
 - Added synthetic regression coverage, source privacy checks, locked dependencies, and native packaging contracts.
 
-Release publication is a separate stage from this implementation.
+- Added native Windows and Linux CI, release archive checks, and Debian installation/removal verification.

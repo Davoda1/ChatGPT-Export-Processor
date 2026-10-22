@@ -7,14 +7,19 @@ function verify(dir, platform) {
   try { fs.readSync(descriptor, magic, 0, 4, 0); } finally { fs.closeSync(descriptor); }
   if (platform === 'win' ? magic[0] !== 0x4d || magic[1] !== 0x5a : !magic.equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46]))) throw new Error('The application entrypoint must be a native binary.');
   if (!fs.statSync(path.join(dir, 'resources', 'app.asar')).isFile()) throw new Error('Packaged application archive is missing.');
+  for (const notice of ['README.md', 'BUILDING.md', 'LICENSE-ChatGPT-Export-Processor.txt', 'THIRD-PARTY-NOTICES.md', 'LICENSE.electron.txt', 'LICENSES.chromium.html']) {
+    if (!fs.statSync(path.join(dir, notice)).isFile()) throw new Error('Packaged documentation or legal notice is missing: ' + notice);
+  }
   for (const leftover of ['electron', 'electron.exe', path.join('resources', 'default_app.asar')]) if (fs.existsSync(path.join(dir, leftover))) throw new Error('Stock Electron entrypoint or default application was retained.');
   for (const name of fs.readdirSync(dir)) {
+    if (name.startsWith('.')) throw new Error('Unexpected hidden build artifact in packaged application.');
     if (/\.(?:sh|cmd|bat|ps1)$/i.test(name) || /-launcher$/.test(name)) throw new Error('Launcher scripts are not permitted: ' + name);
   }
   if (platform === 'linux') {
     const link = path.join(dir, 'bin', 'chatgpt-export-processor');
     if (!fs.lstatSync(link).isSymbolicLink() || fs.realpathSync(link) !== fs.realpathSync(executable)) throw new Error('Linux bin entry must point directly to the native executable.');
     if (!(fs.statSync(executable).mode & 0o111)) throw new Error('Native executable has no executable permission.');
+    if (!fs.statSync(path.join(dir, 'chrome-sandbox')).isFile()) throw new Error('The Linux sandbox helper is missing.');
   }
   const asar = require('@electron/asar');
   const archive = path.join(dir, 'resources', 'app.asar');

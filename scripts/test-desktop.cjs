@@ -14,10 +14,14 @@ const { conversation, fixtureZip } = require('../tests/helpers/conversion.cjs');
 // Dialog responses represent user selections; production dialog code is intact.
 const sha = data => crypto.createHash('sha256').update(data).digest('hex');
 async function run() {
+  const args = process.argv.slice(2);
+  if (args.length && (args.length !== 2 || args[0] !== '--dir')) throw new Error('Usage: node scripts/test-desktop.cjs [--dir PACKAGED_DIRECTORY]');
+  const packagedDirectory = args.length ? path.resolve(args[1]) : null;
+  if (packagedDirectory && process.env.TEST_SINGLE_INSTANCE_SHIM === '1') throw new Error('Packaged desktop tests must use the production single-instance lock.');
   const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'processor-desktop-test-'));
   const appRoot = path.resolve(__dirname, '..');
   let app;
-  const observations = { passed: false, platform: process.platform, singletonShim: process.env.TEST_SINGLE_INSTANCE_SHIM === '1', windowsRuntimeExecuted: process.platform === 'win32', checks: [] };
+  const observations = { passed: false, platform: process.platform, packagedRuntime: Boolean(packagedDirectory), singletonShim: process.env.TEST_SINGLE_INSTANCE_SHIM === '1', windowsRuntimeExecuted: process.platform === 'win32', checks: [] };
   try {
     const input = path.join(fixtureRoot, 'synthetic-export.zip');
     const outputs = path.join(fixtureRoot, 'outputs');
@@ -44,7 +48,12 @@ async function run() {
     const flags = [];
     if (process.getuid?.() === 0) flags.push('--no-sandbox');
     if (process.platform === 'linux' && process.env.TEST_DESKTOP_DISPLAY !== '1') flags.push('--ozone-platform=headless','--disable-gpu');
-    app = await electron.launch({executablePath:require('electron'),args:[...flags,launchTarget],env,timeout:30000});
+    const executable = packagedDirectory ? path.join(packagedDirectory, process.platform === 'win32' ? 'ChatGPT-Export-Processor.exe' : 'chatgpt-export-processor') : require('electron');
+    const chromiumSandbox = process.getuid?.() !== 0;
+    app = await electron.launch({executablePath:executable,args:packagedDirectory ? flags : [...flags,launchTarget],env,chromiumSandbox,timeout:30000});
+    const sandboxDisabled = await app.evaluate(({app}) => app.commandLine.hasSwitch('no-sandbox') || app.commandLine.hasSwitch('disable-setuid-sandbox'));
+    if (chromiumSandbox) assert.equal(sandboxDisabled,false,'Native runner tests must keep the Chromium sandbox enabled.');
+    observations.chromiumSandboxEnabled = !sandboxDisabled;
     const page = await app.firstWindow({timeout:30000});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));

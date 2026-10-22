@@ -1,0 +1,166 @@
+name: Release build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Verify release (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            platform: linux
+            unpacked: linux-unpacked
+            archive: ChatGPT-Export-Processor-1.0.0-Linux-amd64.tar.gz
+          - name: Windows
+            os: windows-2025
+            platform: win
+            unpacked: win-unpacked
+            archive: ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip
+    env:
+      CI: 'true'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+
+      - name: Use the declared npm version
+        run: npm install --global npm@11.9.0
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Download the pinned Electron runtime
+        run: npx --no-install install-electron
+
+      - name: Install browser and Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Install browser on Windows
+        if: runner.os == 'Windows'
+        run: npx --no-install playwright install chromium
+
+      - name: Scan publication privacy
+        run: npm run test:privacy
+
+      - name: Run the full regression suite
+        run: npm test
+
+      - name: Build release packages
+        run: npm run pack:${{ matrix.platform }}
+
+      - name: Verify extracted archive against the build
+        run: node scripts/test-release.cjs --archive dist/${{ matrix.archive }} --reference dist/${{ matrix.unpacked }} --destination test-results/release
+
+      # Ubuntu restricts unprivileged user namespaces. This is the documented
+      # administrator setup for the extracted portable copy, not a modification
+      # of the release archive and not a sandbox-disable launch flag.
+      - name: Configure the extracted portable sandbox on Ubuntu
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root test-results/release/chrome-sandbox
+          sudo chmod 4755 test-results/release/chrome-sandbox
+
+      - name: Verify native Windows version metadata
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $metadata = (Get-Item 'test-results/release/ChatGPT-Export-Processor.exe').VersionInfo
+          if ($metadata.CompanyName -cne 'davoda1') { throw 'Unexpected native maintainer metadata.' }
+          if ($metadata.ProductName -cne 'ChatGPT Export Processor') { throw 'Unexpected native product metadata.' }
+          if ($metadata.FileVersion.Trim() -notmatch '^1\.0\.0(?:\.0)?$') { throw 'Unexpected native file version.' }
+          if ($metadata.ProductVersion.Trim() -notmatch '^1\.0\.0(?:\.0)?$') { throw 'Unexpected native product version.' }
+          Write-Output 'PASS: native Windows version and maintainer metadata.'
+
+      - name: Test the extracted native CLI
+        run: npm run test:packaged -- --dir test-results/release
+
+      - name: Test the extracted Linux desktop
+        if: runner.os == 'Linux'
+        env:
+          TEST_DESKTOP_DISPLAY: '1'
+        run: xvfb-run --auto-servernum npm run test:desktop -- --dir test-results/release
+
+      - name: Test the extracted Windows desktop
+        if: runner.os == 'Windows'
+        run: npm run test:desktop -- --dir test-results/release
+
+      - name: Confirm a clean Debian installation target
+        if: runner.os == 'Linux'
+        run: node scripts/test-release.cjs --removed
+
+      - name: Install the Debian package with its dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install --yes --no-install-recommends ./dist/chatgpt-export-processor_1.0.0_amd64.deb
+
+      - name: Verify installed Debian metadata and native entrypoints
+        if: runner.os == 'Linux'
+        run: node scripts/test-release.cjs --installed
+
+      - name: Test the installed Debian native CLI
+        if: runner.os == 'Linux'
+        run: npm run test:packaged -- --dir /opt/chatgpt-export-processor
+
+      - name: Test the installed Debian desktop
+        if: runner.os == 'Linux'
+        env:
+          TEST_DESKTOP_DISPLAY: '1'
+        run: xvfb-run --auto-servernum npm run test:desktop -- --dir /opt/chatgpt-export-processor
+
+      - name: Remove the Debian package
+        if: always() && runner.os == 'Linux'
+        run: |
+          if dpkg-query --show chatgpt-export-processor >/dev/null 2>&1; then
+            sudo dpkg --purge chatgpt-export-processor
+          fi
+
+      - name: Verify Debian removal
+        if: always() && runner.os == 'Linux'
+        run: node scripts/test-release.cjs --removed
+
+      - name: Upload verified Linux packages
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-linux-1.0.0
+          path: |
+            dist/ChatGPT-Export-Processor-1.0.0-Linux-amd64.tar.gz
+            dist/chatgpt-export-processor_1.0.0_amd64.deb
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload verified Windows package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows-1.0.0
+          path: dist/ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      # Artifacts remain private with the repository. A successful build does
+      # not create a tag or publish a GitHub release; publishing is a separate
+      # maintainer action after checking all workflows for the selected commit.
