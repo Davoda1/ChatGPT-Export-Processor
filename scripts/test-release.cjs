@@ -9,6 +9,7 @@ const {pipeline} = require('node:stream/promises');
 const {Transform} = require('node:stream');
 const crc32 = require('crc-32');
 const {verify} = require('./verify-package.cjs');
+const {verifyDocumentation} = require('./package-documentation.cjs');
 const version = require('../package.json').version;
 
 async function hash(file) {
@@ -93,6 +94,7 @@ function verifyInstalled() {
   assert.equal(process.platform, 'linux');
   const directory = '/opt/chatgpt-export-processor', entrypoint = '/usr/bin/chatgpt-export-processor';
   verify(directory, 'linux');
+  verifyDocumentation('/usr/share/doc/chatgpt-export-processor');
   assert.ok(fs.lstatSync(entrypoint).isSymbolicLink(), 'Installed bin entry must be a direct native symlink.');
   assert.equal(fs.realpathSync(entrypoint), fs.realpathSync(path.join(directory, 'chatgpt-export-processor')));
   const installDirectory = fs.statSync(directory);

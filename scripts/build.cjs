@@ -6,6 +6,7 @@ const {spawnSync} = require('node:child_process');
 const {finished, pipeline} = require('node:stream/promises');
 const {build, Platform, Arch} = require('electron-builder');
 const {verify} = require('./verify-package.cjs');
+const {copyDocumentation} = require('./package-documentation.cjs');
 const root = path.resolve(__dirname, '..');
 const packageInfo = require('../package.json');
 const archiveEpoch = 1767225600;
@@ -93,7 +94,7 @@ async function createDeb(directory, outDir) {
     const docDir = path.join(staging, 'usr', 'share', 'doc', 'chatgpt-export-processor');
     await fsp.mkdir(docDir, {recursive: true});
     await fsp.copyFile(path.join(root, 'LICENSE'), path.join(docDir, 'copyright'));
-    await fsp.copyFile(path.join(root, 'README.md'), path.join(docDir, 'README.md'));
+    await copyDocumentation(root, docDir);
     const sizeKiB = await installedSize(staging);
     await fsp.mkdir(path.join(staging, 'DEBIAN'));
     const control = `Package: chatgpt-export-processor\nVersion: ${packageInfo.version}\nArchitecture: amd64\nSection: utils\nPriority: optional\nMaintainer: davoda1\nHomepage: ${packageInfo.homepage}\nInstalled-Size: ${sizeKiB}\nDepends: ${linuxDependencies.join(', ')}\nDescription: Local ChatGPT export conversion and validation\n Convert export archives and inspect conversion evidence without a server.\n`;
@@ -126,8 +127,9 @@ async function main() {
   // A verified stock archive passed as electronDist retains the default app.
   // Only the renamed application entrypoint and its own ASAR are shipped.
   for (const stock of [targetPlatform === 'win' ? 'electron.exe' : 'electron', 'version', path.join('resources', 'default_app.asar')]) await fsp.rm(path.join(directory, stock), {force: true});
+  await copyDocumentation(root, directory);
   for (const [source, target] of [
-    ['README.md', 'README.md'], ['LICENSE', 'LICENSE-ChatGPT-Export-Processor.txt'],
+    ['LICENSE', 'LICENSE-ChatGPT-Export-Processor.txt'],
     ['docs/BUILDING.md', 'BUILDING.md'], ['docs/THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.md'],
   ]) await fsp.copyFile(path.join(root, source), path.join(directory, target));
   if (targetPlatform === 'linux') {

@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const {verifyDocumentation} = require('./package-documentation.cjs');
 function verify(dir, platform) {
   const executable = path.join(dir, platform === 'win' ? 'ChatGPT-Export-Processor.exe' : 'chatgpt-export-processor');
   const magic = Buffer.alloc(4), descriptor = fs.openSync(executable, 'r');
@@ -10,6 +11,7 @@ function verify(dir, platform) {
   for (const notice of ['README.md', 'BUILDING.md', 'LICENSE-ChatGPT-Export-Processor.txt', 'THIRD-PARTY-NOTICES.md', 'LICENSE.electron.txt', 'LICENSES.chromium.html']) {
     if (!fs.statSync(path.join(dir, notice)).isFile()) throw new Error('Packaged documentation or legal notice is missing: ' + notice);
   }
+  verifyDocumentation(dir);
   for (const leftover of ['electron', 'electron.exe', path.join('resources', 'default_app.asar')]) if (fs.existsSync(path.join(dir, leftover))) throw new Error('Stock Electron entrypoint or default application was retained.');
   for (const name of fs.readdirSync(dir)) {
     if (name.startsWith('.')) throw new Error('Unexpected hidden build artifact in packaged application.');
