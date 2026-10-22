@@ -39,13 +39,9 @@ async function run() {
       await fs.writeFile(path.join(bootstrap, 'bootstrap.cjs'), "'use strict';\nrequire('electron').app.requestSingleInstanceLock = () => true;\nrequire(" + JSON.stringify(path.join(appRoot,'src/main/main.cjs')) + ');\n');
       launchTarget = bootstrap;
     }
-    const env = {...process.env, XDG_CONFIG_HOME: preferencesRoot};
-    if (process.platform === 'win32') {
-      env.APPDATA = preferencesRoot;
-      env.LOCALAPPDATA = preferencesRoot;
-    }
+    const env = {...process.env};
     delete env.ELECTRON_RUN_AS_NODE;
-    const flags = [];
+    const flags = [`--user-data-dir=${preferencesRoot}`];
     if (process.getuid?.() === 0) flags.push('--no-sandbox');
     if (process.platform === 'linux' && process.env.TEST_DESKTOP_DISPLAY !== '1') flags.push('--ozone-platform=headless','--disable-gpu');
     const executable = packagedDirectory ? path.join(packagedDirectory, process.platform === 'win32' ? 'ChatGPT-Export-Processor.exe' : 'chatgpt-export-processor') : require('electron');
@@ -54,10 +50,16 @@ async function run() {
     const sandboxDisabled = await app.evaluate(({app}) => app.commandLine.hasSwitch('no-sandbox') || app.commandLine.hasSwitch('disable-setuid-sandbox'));
     if (chromiumSandbox) assert.equal(sandboxDisabled,false,'Native runner tests must keep the Chromium sandbox enabled.');
     observations.chromiumSandboxEnabled = !sandboxDisabled;
+    const actualUserData = await app.evaluate(({app}) => app.getPath('userData'));
+    assert.ok(await fs.realpath(actualUserData) === await fs.realpath(preferencesRoot), 'The application must use the isolated test profile.');
     const page = await app.firstWindow({timeout:30000});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.waitForFunction(() => document.querySelector('#footerStatus')?.textContent.includes('Ready'), null, {timeout:30000});
+    const testPreferences = {theme: 'dark', density: 'comfortable'};
+    await page.evaluate(value => window.processor.setPreferences(value), testPreferences);
+    assert.deepEqual(JSON.parse(await fs.readFile(path.join(preferencesRoot, 'preferences.json'), 'utf8')), testPreferences);
+    observations.checks.push('explicit test profile isolates Electron user data and appearance preferences');
     await app.evaluate(({dialog}, values) => {
       dialog.showOpenDialog = async (_window, options) => ({canceled:false,filePaths:[options.properties.includes('openDirectory') ? values.outputs : values.input]});
       dialog.showSaveDialog = async () => ({canceled:false,filePath:values.reportFile});

@@ -2,6 +2,7 @@
 const {app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, session} = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const {mkdirSync} = require('node:fs');
 const crypto = require('node:crypto');
 const {pathToFileURL} = require('node:url');
 const {JobController} = require('./job-controller.cjs');
@@ -17,7 +18,10 @@ if (cli && process.platform === 'linux') {
   app.commandLine.appendSwitch('disable-gpu');
 }
 app.setName('ChatGPT Export Processor');
-app.setPath('userData', path.join(app.getPath('appData'), 'ChatGPT-Export-Processor-Public'));
+const requestedUserData = app.commandLine.getSwitchValue('user-data-dir');
+const userDataDirectory = requestedUserData ? path.resolve(requestedUserData) : path.join(app.getPath('appData'), 'ChatGPT-Export-Processor-Public');
+mkdirSync(userDataDirectory, {recursive: true, mode: 0o700});
+app.setPath('userData', userDataDirectory);
 const preferencesFile = path.join(app.getPath('userData'), 'preferences.json');
 let preferences = loadPreferences(preferencesFile);
 nativeTheme.themeSource = preferences.theme;

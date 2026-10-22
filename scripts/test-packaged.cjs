@@ -34,20 +34,16 @@ async function main() {
   const directory = path.resolve(args[1] || path.join(__dirname, '..', 'dist', process.platform === 'win32' ? 'win-unpacked' : 'linux-unpacked'));
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'processor-packaged-test-'));
   try {
-    const input = path.join(temporary, 'export.zip'), output = path.join(temporary, 'output');
-    await fs.mkdir(output);
+    const input = path.join(temporary, 'export.zip'), output = path.join(temporary, 'output'), profile = path.join(temporary, 'profile');
+    await fs.mkdir(output); await fs.mkdir(profile);
     const bytes = fixtureZip([['conversations.json', JSON.stringify([conversation('packaged-synthetic')])]]);
     await fs.writeFile(input, bytes);
     const executable = path.join(directory, process.platform === 'win32' ? 'ChatGPT-Export-Processor.exe' : 'chatgpt-export-processor');
-    const env = {...process.env, XDG_CONFIG_HOME: path.join(temporary, 'config')};
-    if (process.platform === 'win32') {
-      env.APPDATA = path.join(temporary, 'config');
-      env.LOCALAPPDATA = path.join(temporary, 'config');
-    }
+    const env = {...process.env};
     delete env.ELECTRON_RUN_AS_NODE;
     // Explicit headless flags are needed before Chromium's platform startup.
     // The privileged-container sandbox exception is confined to this test.
-    const flags = process.platform === 'linux' ? ['--ozone-platform=headless', '--disable-gpu', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : [])] : [];
+    const flags = [`--user-data-dir=${profile}`, ...(process.platform === 'linux' ? ['--ozone-platform=headless', '--disable-gpu', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : [])] : [])];
     const version = await runNative('version', executable, [...flags, '--cli', '--version'], {env, timeout: 30000});
     assert.equal(version.stdout.trim(), '1.0.0');
     await runNative('conversion', executable, [...flags, '--cli', 'convert', input, '--output-dir', output], {env, timeout: 60000});
