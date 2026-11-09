@@ -35,18 +35,46 @@ function verifiedSource(root, expectedSha, {allowMissingTag = false} = {}) {
   run('git', ['merge-base', '--is-ancestor', sha, 'origin/master'], root);
   return {version: metadata.version, tag, sha};
 }
-function plan(root, expectedSha, eventName, ref, requestedPublish) {
-  const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
-  const tag = 'v' + version;
-  if (eventName === 'push' && ref === 'refs/heads/master') {
-    try {
-      run('git', ['rev-parse', '--verify', `refs/tags/${tag}`], root);
-      return {build: false, publish: false};
-    } catch { /* A new version proceeds to the verified release gates. */ }
+function githubApi(root, {repository = process.env.GH_REPO, runGh} = {}) {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository || '') || (!runGh && !process.env.GH_TOKEN)) throw new Error('GitHub release authentication and repository are required.');
+  const execute = runGh || ((args, options) => run('gh', args, root, options));
+  const base = `repos/${repository}`;
+  function request(method, route, {body, file} = {}) {
+    const endpoint = file ? `https://uploads.github.com/${base}/${route}` : `${base}/${route}`;
+    const args = ['api', '--hostname', 'github.com', '--method', method, endpoint, '--header', 'Accept: application/vnd.github+json'];
+    const options = {stdio: ['pipe', 'pipe', 'pipe']};
+    if (file) args.push('--header', 'Content-Type: application/octet-stream', '--input', file);
+    else if (body !== undefined) { args.push('--input', '-'); options.input = JSON.stringify(body); }
+    const text = execute(args, options).trim();
+    return text ? JSON.parse(text) : null;
   }
-  verifiedSource(root, expectedSha, {allowMissingTag: true});
-  if (eventName === 'push' && ref !== 'refs/heads/master' && ref !== `refs/tags/${tag}`) throw new Error('The pushed tag must match the package version.');
+  return request;
+}
+function findRelease(api, tag) {
+  const matches = [];
+  for (let page = 1; page <= 100; page++) {
+    // The by-tag endpoint excludes drafts. Listing authenticated releases is
+    // required for safe discovery; every subsequent operation uses numeric IDs.
+    const releases = api('GET', `releases?per_page=100&page=${page}`);
+    if (!Array.isArray(releases)) throw new Error('Unexpected GitHub release listing.');
+    matches.push(...releases.filter(release => release.tag_name === tag));
+    if (matches.length > 1) throw new Error('Multiple releases use this tag; resolve the duplicate drafts before retrying.');
+    if (releases.length < 100) return matches[0] || null;
+  }
+  throw new Error('Release listing exceeded its pagination limit.');
+}
+function plan(root, expectedSha, eventName, ref, requestedPublish, githubOptions = {}) {
+  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  if (!/^\d+\.\d+\.\d+$/.test(metadata.version) || metadata.author !== 'davoda1') throw new Error('Unexpected release version or maintainer.');
+  const tag = 'v' + metadata.version;
   if (!['push', 'workflow_dispatch'].includes(eventName)) throw new Error('Unsupported release trigger.');
+  if (eventName === 'push' && ref !== 'refs/heads/master' && ref !== `refs/tags/${tag}`) throw new Error('The pushed tag must match the package version.');
+  const existing = findRelease(githubApi(root, githubOptions), tag);
+  // A tag or draft is not a completed release. Later master maintenance may
+  // skip a published version, but an unpublished version must still be verified.
+  if (eventName === 'push' && ref === 'refs/heads/master' && existing && existing.draft === false) return {build: false, publish: false};
+  const source = verifiedSource(root, expectedSha, {allowMissingTag: true});
+  if (existing && existing.target_commitish !== source.sha) throw new Error('The existing release belongs to a different commit; tags and releases will not be moved.');
   return {build: true, publish: eventName === 'push' || requestedPublish === 'true'};
 }
 async function digest(file) {
@@ -91,50 +119,82 @@ async function prepare(root, directory, expectedSha) {
   await fsp.writeFile(path.join(directory, 'SHA256SUM.txt'), await manifest(directory, assetNames), {flag: 'wx'});
   return source;
 }
-async function publish(root, directory, expectedSha) {
+function numericId(value, kind) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`Invalid GitHub ${kind} identifier.`);
+  return value;
+}
+function verifyReleaseRecord(release, source, expectedNames) {
+  numericId(release?.id, 'release');
+  if (release.tag_name !== source.tag || release.target_commitish !== source.sha || typeof release.draft !== 'boolean') throw new Error('Only a release for this exact tag and verified commit may be used.');
+  if (!Array.isArray(release.assets)) throw new Error('Missing release asset inventory.');
+  const names = release.assets.map(asset => asset.name);
+  if (new Set(names).size !== names.length || names.some(name => !expectedNames.includes(name))) throw new Error('Existing release contains unrelated or duplicate assets; refusing to change it.');
+}
+function matchingAsset(asset, expected) {
+  return asset.state === 'uploaded' && asset.size === expected.size && asset.digest === 'sha256:' + expected.hash;
+}
+function verifyUploaded(release, source, expected) {
+  verifyReleaseRecord(release, source, [...expected.keys()]);
+  if (release.assets.length !== expected.size) throw new Error('Release asset inventory is incomplete.');
+  for (const asset of release.assets) if (!matchingAsset(asset, expected.get(asset.name))) throw new Error('Uploaded release asset digest, size, or state differs.');
+}
+async function publish(root, directory, expectedSha, githubOptions = {}) {
   const source = verifiedSource(root, expectedSha, {allowMissingTag: true});
   const assetNames = names(source.version);
   const allAssets = [...assetNames, 'SHA256SUM.txt'];
   await inventory(directory, allAssets);
   if (await fsp.readFile(path.join(directory, 'SHA256SUM.txt'), 'utf8') !== await manifest(directory, assetNames)) throw new Error('Release assets do not match the checksum manifest.');
   const notesText = await releaseNotes(root, source.version);
-  if (!process.env.GH_TOKEN || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.GH_REPO || '')) throw new Error('GitHub release authentication and repository are required.');
-  const apiPath = `repos/${process.env.GH_REPO}/releases/tags/${source.tag}`;
-  const tagPath = `repos/${process.env.GH_REPO}/git/ref/tags/${source.tag}`;
+  const expected = new Map();
+  for (const name of allAssets) {
+    const file = path.join(directory, name);
+    expected.set(name, {file, size: (await fsp.stat(file)).size, hash: await digest(file)});
+  }
+  const api = githubApi(root, githubOptions);
+  let release = findRelease(api, source.tag);
+  if (release) {
+    verifyReleaseRecord(release, source, allAssets);
+    release = api('GET', `releases/${numericId(release.id, 'release')}`);
+    verifyReleaseRecord(release, source, allAssets);
+  }
   let remoteTag;
-  try { remoteTag = JSON.parse(run('gh', ['api', tagPath], root)); }
+  try { remoteTag = api('GET', `git/ref/tags/${source.tag}`); }
   catch (error) { if (!String(error.stderr || '').includes('(HTTP 404)')) throw error; }
-  if (!remoteTag) {
-    run('gh', ['api', `repos/${process.env.GH_REPO}/git/refs`, '--method', 'POST', '-f', `ref=refs/tags/${source.tag}`, '-f', `sha=${source.sha}`], root);
-  } else {
+  if (remoteTag) {
     let object = remoteTag.object;
-    for (let depth = 0; object.type === 'tag' && depth < 5; depth++) object = JSON.parse(run('gh', ['api', `repos/${process.env.GH_REPO}/git/tags/${object.sha}`], root)).object;
-    if (object.type !== 'commit' || object.sha !== source.sha) throw new Error('The remote release tag must identify the verified commit.');
+    for (let depth = 0; object?.type === 'tag' && depth < 5; depth++) {
+      if (!/^[a-f0-9]{40}$/.test(object.sha)) throw new Error('Invalid annotated tag object.');
+      object = api('GET', `git/tags/${object.sha}`).object;
+    }
+    if (object?.type !== 'commit' || object.sha !== source.sha) throw new Error('The remote release tag must identify the verified commit.');
   }
-  let existing;
-  try { existing = JSON.parse(run('gh', ['api', apiPath], root)); }
-  catch (error) {
-    if (!String(error.stderr || '').includes('(HTTP 404)')) throw error;
+  if (release && !release.draft) {
+    if (!remoteTag) throw new Error('Published release tag is missing; refusing to modify it.');
+    verifyUploaded(release, source, expected);
+    return {...source, alreadyPublished: true};
   }
-  if (existing && (!existing.draft || existing.target_commitish !== source.sha)) throw new Error('Only an unpublished draft for this exact commit may be resumed.');
-  if (existing && existing.assets.some(asset => !allAssets.includes(asset.name))) throw new Error('Existing draft contains unrelated assets; refusing to change it.');
-  if (!existing) {
-    const temporary = await fsp.mkdtemp(path.join(os.tmpdir(), 'processor-release-notes-'));
-    try {
-      const notes = path.join(temporary, 'notes.md');
-      await fsp.writeFile(notes, notesText);
-      run('gh', ['release', 'create', source.tag, '--verify-tag', '--target', source.sha, '--draft', '--title', `ChatGPT Export Processor ${source.version}`, '--notes-file', notes], root);
-    } finally { await fsp.rm(temporary, {recursive: true, force: true}); }
+  if (!remoteTag) api('POST', 'git/refs', {body: {ref: `refs/tags/${source.tag}`, sha: source.sha}});
+  if (!release) {
+    release = api('POST', 'releases', {body: {tag_name: source.tag, target_commitish: source.sha, draft: true, name: `ChatGPT Export Processor ${source.version}`, body: notesText}});
+    verifyReleaseRecord(release, source, allAssets);
+    if (!release.draft) throw new Error('New release must remain a draft until uploads are verified.');
   }
-  run('gh', ['release', 'upload', source.tag, ...allAssets.map(name => path.join(directory, name)), '--clobber'], root);
-  const uploaded = JSON.parse(run('gh', ['api', apiPath], root));
-  if (!uploaded.draft || JSON.stringify(uploaded.assets.map(asset => asset.name).sort()) !== JSON.stringify([...allAssets].sort())) throw new Error('Draft release asset inventory is incomplete.');
-  for (const asset of uploaded.assets) {
-    const file = path.join(directory, asset.name);
-    if (asset.size !== (await fsp.stat(file)).size || asset.state !== 'uploaded') throw new Error('Uploaded release asset is incomplete.');
-    if (asset.digest && asset.digest !== 'sha256:' + await digest(file)) throw new Error('Uploaded release asset digest differs.');
+  const releaseId = numericId(release.id, 'release');
+  for (const [name, file] of expected) {
+    const existing = release.assets.find(asset => asset.name === name);
+    if (existing && matchingAsset(existing, file)) continue;
+    // Only mismatching assets belonging to this exact unpublished release can
+    // be replaced. Completed uploads are retained when resuming a partial run.
+    if (existing) api('DELETE', `releases/assets/${numericId(existing.id, 'asset')}`);
+    const uploaded = api('POST', `releases/${releaseId}/assets?name=${encodeURIComponent(name)}`, {file: file.file});
+    if (uploaded?.name !== name || !matchingAsset(uploaded, file)) throw new Error('Uploaded release asset digest, size, or state differs.');
   }
-  run('gh', ['release', 'edit', source.tag, '--draft=false', '--latest'], root);
+  const uploaded = api('GET', `releases/${releaseId}`);
+  if (!uploaded.draft) throw new Error('Release changed during upload; refusing to change a published release.');
+  verifyUploaded(uploaded, source, expected);
+  const published = api('PATCH', `releases/${releaseId}`, {body: {draft: false, make_latest: 'true'}});
+  if (published.draft) throw new Error('GitHub did not publish the verified release.');
+  verifyUploaded(published, source, expected);
   return source;
 }
 async function main() {
@@ -155,4 +215,4 @@ async function main() {
   console.log(`${action === 'prepare' ? 'Prepared' : 'Published'} ${result.tag} from verified commit ${result.sha}.`);
 }
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
-module.exports = {names, digest, manifest, verifiedSource, plan, prepare, releaseNotes};
+module.exports = {names, digest, manifest, verifiedSource, plan, prepare, releaseNotes, githubApi, findRelease, publish};

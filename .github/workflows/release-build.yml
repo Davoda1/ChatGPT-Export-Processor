@@ -42,6 +42,8 @@ jobs:
       - name: Select a new version or explicit verification run
         id: plan
         env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ github.sha }}
           RELEASE_PUBLISH: ${{ inputs.publish || false }}
         run: node scripts/publish-release.cjs plan >> "$GITHUB_OUTPUT"
