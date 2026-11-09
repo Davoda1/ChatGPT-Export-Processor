@@ -3,7 +3,7 @@
   'use strict';
   const byId = id => document.getElementById(id);
   const pageSize = 10, messageBatch = 60;
-  const state = {records: [], filtered: [], page: 0, query: '', branch: 'current', expanded: new Set()};
+  const state = {records: [], assets: Object.create(null), filtered: [], page: 0, query: '', branch: 'current', expanded: new Set()};
   const escape = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const renderer = new marked.Renderer();
   renderer.html = token => escape(token.text || token.raw || '');
@@ -83,7 +83,35 @@
     }
     return container;
   }
-  function renderMessage(item) {
+  function localAttachment(href) {
+    if (typeof href !== 'string' || href.length > 16384 || !href.startsWith('assets/') || /[\\\x00-\x20?#]/.test(href)) return null;
+    try {
+      const parts = href.split('/').map(part => decodeURIComponent(part));
+      if (parts.length < 2 || parts[0] !== 'assets' || parts.some(part => !part || part === '.' || part === '..' || /[/\\\x00-\x1f\x7f]/.test(part))) return null;
+      const name = parts.at(-1);
+      if (!/\.dat$/i.test(name)) return null;
+      return {href, name};
+    } catch { return null; }
+  }
+  function attachmentLinks(recordIndex, nodeKey) {
+    const key = JSON.stringify([recordIndex, nodeKey]);
+    if (!Object.hasOwn(state.assets, key)) return null;
+    const candidates = state.assets[key];
+    if (!Array.isArray(candidates)) return null;
+    const list = element('ul', 'attachments'), seen = new Set();
+    for (const candidate of candidates) {
+      const item = localAttachment(candidate);
+      if (!item || seen.has(item.href)) continue;
+      seen.add(item.href);
+      const row = element('li'), anchor = element('a', 'attachment-link', 'Download attachment: ' + item.name);
+      anchor.setAttribute('href', item.href);
+      anchor.setAttribute('download', item.name);
+      anchor.setAttribute('rel', 'noopener noreferrer');
+      row.append(anchor); list.append(row);
+    }
+    return list.childElementCount ? list : null;
+  }
+  function renderMessage(item, recordIndex) {
     const message = item.node.message;
     const role = String(message.author?.role || 'message');
     const block = element('section', 'message ' + (['user','assistant','system','tool'].includes(role) ? role : 'other'));
@@ -91,6 +119,8 @@
     const pieces = plainParts(message);
     if (pieces.length) block.append(renderMarkdown(pieces.join('\n\n')));
     else block.append(element('p', 'message-note', 'No displayable text. Structured content remains in the saved data.'));
+    const attachments = attachmentLinks(recordIndex, item.id);
+    if (attachments) block.append(attachments);
     return block;
   }
   function dateText(record) {
@@ -114,7 +144,7 @@
     function loadBatch() {
       more.remove();
       const until = Math.min(nodes.length, rendered + messageBatch);
-      while (rendered < until) messages.append(renderMessage(nodes[rendered++]));
+      while (rendered < until) messages.append(renderMessage(nodes[rendered++], recordIndex));
       if (rendered < nodes.length) { more.textContent = `Show more messages (${nodes.length - rendered} remaining)`; messages.append(more); }
       if (!nodes.length) messages.append(element('p', 'message-note', 'This conversation has no saved messages.'));
     }
@@ -186,6 +216,12 @@
     if (!data.startsWith(prefix) || !data.endsWith(';')) throw new Error('Invalid archive data wrapper.');
     const records = JSON.parse(data.slice(prefix.length, -1));
     if (!Array.isArray(records) || records.some(record => !record || typeof record !== 'object' || Array.isArray(record))) throw new Error('The archive must contain conversation objects.');
+    const assetData = byId('archive-assets');
+    if (assetData) {
+      const assets = JSON.parse(assetData.textContent);
+      if (!assets || typeof assets !== 'object' || Array.isArray(assets)) throw new Error('Invalid attachment link data.');
+      state.assets = assets;
+    }
     state.records = records;
     state.filtered = records.map((_, index) => index);
     if (records.length) state.expanded.add(0);

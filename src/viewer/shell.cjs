@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {version} = require('../../package.json');
 
 let cached;
 const digest = text => crypto.createHash('sha256').update(text).digest('base64');
@@ -48,7 +49,7 @@ function highlightBundle(root) {
   return `(function(){'use strict';const factories={${factories}};const cache=Object.create(null);function load(id){if(cache[id])return cache[id].exports;const module={exports:{}};cache[id]=module;factories[id](module,module.exports,load);return module.exports;}window.hljs=load(${JSON.stringify(entry)});})();`;
 }
 
-function getShell() {
+function getStaticShell() {
   if (cached) return cached;
   const roots = Object.fromEntries(['marked', 'dompurify', 'highlight.js'].map(name => [name, packageRoot(name)]));
   const dependencies = [
@@ -61,10 +62,23 @@ function getShell() {
   const css = fs.readFileSync(path.join(__dirname, 'viewer.css'), 'utf8');
   const notices = JSON.stringify(Object.entries(roots).map(([name, root]) => ({name, license: license(root)}))).replaceAll('<', '\\u003c');
   const policy = `default-src 'none'; script-src 'sha256-${digest(libraries)}' 'sha256-${digest(client)}'; style-src 'sha256-${digest(css)}'; img-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-  const prefix = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="${policy}">\n<meta name="generator" content="ChatGPT Export Processor 1.0.0">\n<title>ChatGPT Archive</title>\n<style>${css}</style>\n</head>\n<body>\n<header class="toolbar"><div class="brand"><span class="mark" aria-hidden="true">▤</span><div><strong>ChatGPT Archive</strong><small>Your saved conversations · offline viewer</small></div></div><label class="search-label"><span class="sr-only">Search titles and messages</span><input id="search" type="search" placeholder="Search titles and messages…" autocomplete="off"></label><label class="theme-label"><span class="sr-only">Appearance</span><select id="theme"><option value="system">System theme</option><option value="dark">Dark theme</option><option value="light">Light theme</option></select></label></header>\n<div class="controls"><p id="summary" role="status" aria-live="polite">Loading saved conversations…</p><div class="actions"><label><span class="sr-only">Saved messages</span><select id="branch"><option value="current">Current branch</option><option value="all">All saved messages</option></select></label><button id="expand">Expand page</button><button id="collapse">Collapse page</button></div></div>\n<main id="archive" tabindex="-1" aria-label="Saved conversations"></main>\n<footer><span class="privacy">Offline · remote images are not loaded</span><button id="licenses" class="link-button">Open-source licenses</button><nav class="pagination" aria-label="Conversation pages"><button id="previous" aria-label="Previous page">Previous</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">Next</button></nav></footer>\n<dialog id="license-dialog" aria-labelledby="license-title"><div class="dialog-head"><h2 id="license-title">Open-source licenses</h2><button id="close-licenses" aria-label="Close licenses">Close</button></div><div id="license-body"></div></dialog>\n<script type="text/plain" id="archive-data">var jsonData = `;
+  const prefix = `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="${policy}">\n<meta name="generator" content="ChatGPT Export Processor ${version}">\n<title>ChatGPT Archive</title>\n<style>${css}</style>\n</head>\n<body>\n<header class="toolbar"><div class="brand"><span class="mark" aria-hidden="true">▤</span><div><strong>ChatGPT Archive</strong><small>Your saved conversations · offline viewer</small></div></div><label class="search-label"><span class="sr-only">Search titles and messages</span><input id="search" type="search" placeholder="Search titles and messages…" autocomplete="off"></label><label class="theme-label"><span class="sr-only">Appearance</span><select id="theme"><option value="system">System theme</option><option value="dark">Dark theme</option><option value="light">Light theme</option></select></label></header>\n<div class="controls"><p id="summary" role="status" aria-live="polite">Loading saved conversations…</p><div class="actions"><label><span class="sr-only">Saved messages</span><select id="branch"><option value="current">Current branch</option><option value="all">All saved messages</option></select></label><button id="expand">Expand page</button><button id="collapse">Collapse page</button></div></div>\n<main id="archive" tabindex="-1" aria-label="Saved conversations"></main>\n<footer><span class="privacy">Offline · remote images are not loaded</span><button id="licenses" class="link-button">Open-source licenses</button><nav class="pagination" aria-label="Conversation pages"><button id="previous" aria-label="Previous page">Previous</button><span id="page-label">Page 1</span><button id="next" aria-label="Next page">Next</button></nav></footer>\n<dialog id="license-dialog" aria-labelledby="license-title"><div class="dialog-head"><h2 id="license-title">Open-source licenses</h2><button id="close-licenses" aria-label="Close licenses">Close</button></div><div id="license-body"></div></dialog>\n<script type="text/plain" id="archive-data">var jsonData = `;
   const suffix = `;</script>\n<script type="application/json" id="license-data">${notices}</script>\n<script>${libraries}</script>\n<script>${client}</script>\n</body>\n</html>\n`;
   cached = Object.freeze({prefix, suffix});
   return cached;
+}
+
+function getShell({assets} = {}) {
+  const shell = getStaticShell();
+  if (assets == null) return shell;
+  if (typeof assets !== 'object' || Array.isArray(assets)) throw new Error('Attachment links must be a conversation-node-to-path map.');
+  if (!Object.keys(assets).length) return shell;
+  // Keep attachment data inert and separate from conversation data. Escaping
+  // HTML delimiters prevents any imported filename from closing this element.
+  const json = JSON.stringify(assets).replace(/[<>&\u2028\u2029]/g, character => '\\u' + character.charCodeAt(0).toString(16).padStart(4, '0'));
+  const marker = ';</script>\n';
+  const suffix = marker + `<script type="application/json" id="archive-assets">${json}</script>\n` + shell.suffix.slice(marker.length);
+  return Object.freeze({prefix: shell.prefix, suffix});
 }
 
 module.exports = {getShell};

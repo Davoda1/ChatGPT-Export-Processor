@@ -6,6 +6,7 @@ const {execFile} = require('node:child_process');
 const {promisify} = require('node:util');
 const assert = require('node:assert/strict');
 const {conversation, fixtureZip} = require('../tests/helpers/conversion.cjs');
+const expectedVersion = require('../package.json').version;
 const run = promisify(execFile);
 
 async function runNative(stage, executable, args, options) {
@@ -45,7 +46,7 @@ async function main() {
     // The privileged-container sandbox exception is confined to this test.
     const flags = [`--user-data-dir=${profile}`, ...(process.platform === 'linux' ? ['--ozone-platform=headless', '--disable-gpu', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : [])] : [])];
     const version = await runNative('version', executable, [...flags, '--cli', '--version'], {env, timeout: 30000});
-    assert.equal(version.stdout.trim(), '1.0.0');
+    assert.equal(version.stdout.trim(), expectedVersion);
     await runNative('conversion', executable, [...flags, '--cli', 'convert', input, '--output-dir', output], {env, timeout: 60000});
     const directories = await fs.readdir(output);
     assert.equal(directories.length, 1);
@@ -54,10 +55,9 @@ async function main() {
     assert.equal(report.status, 'PASS', JSON.stringify(report.findings));
     assert.equal(report.coverage.complete, true);
     assert.deepEqual(await fs.readFile(input), bytes);
-    const inspectionEntrypoint = process.platform === 'linux' ? path.join(directory, 'bin', 'chatgpt-export-processor') : executable;
-    const inspection = await runNative('inspection', inspectionEntrypoint, [...flags, '--cli', 'inspect', '--original', input, '--bundle', path.join(generated, 'chatgpt-export-processed.zip'), '--profile', 'all'], {env, timeout: 60000});
+    const inspection = await runNative('inspection', executable, [...flags, '--cli', 'inspect', '--original', input, '--bundle', path.join(generated, 'chatgpt-export-processed.zip'), '--profile', 'all'], {env, timeout: 60000});
     assert.match(inspection.stdout, /Passed/);
-    console.log(JSON.stringify({passed: true, platform: process.platform, version: version.stdout.trim(), asarRuntime: true, nativeBinary: true, binSymlink: process.platform === 'linux', conversion: 'PASS', inspection: 'PASS', sourceUnchanged: true}, null, 2));
+    console.log(JSON.stringify({passed: true, platform: process.platform, version: version.stdout.trim(), asarRuntime: true, nativeBinary: true, conversion: 'PASS', inspection: 'PASS', sourceUnchanged: true}, null, 2));
   } finally { await fs.rm(temporary, {recursive: true, force: true, maxRetries: 5, retryDelay: 200}); }
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

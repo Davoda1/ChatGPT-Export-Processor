@@ -1,25 +1,29 @@
-# Continuous integration
+# Continuous integration and releases
 
-The CI workflow validates pull requests and pushes to `master`, and supports manual runs. Windows and Linux jobs use the same pinned Node.js and npm versions and install dependencies from the lockfile with `npm ci`.
+The CI workflow validates pull requests and pushes to `master`, and supports manual runs and reusable workflow calls. Windows and Linux jobs use the same pinned Node.js and npm versions and install dependencies from the lockfile with `npm ci`. Ordinary branch check names remain `Test and build (Linux)`, `Test and build (Windows)`, and `Dependency audit`.
 
 Checks cover the core conversion and validation engines, archive safety, offline viewer, responsive workbench, native Electron integration, publication privacy, and packaged native command-line execution. All conversation fixtures are synthetic. A separate dependency audit checks the complete locked dependency graph.
 
-The platform jobs create unpacked applications for testing. CI does not create tags, GitHub releases, installers, or downloadable release packages. Publishing is a separately approved activity.
+## Release verification and publication
 
-The manually dispatched **Release build** workflow creates distributable archives and a Debian package from the selected commit. It verifies extracted packages, runs the packaged application, and exercises Debian installation and removal before uploading build artifacts. A fresh Windows runner downloads that run's portable ZIP and tests its first launch before starting any other Electron application. It also checks 120 isolated version, help, and invalid-command launches under bounded parallel load, requiring the expected output and exit status every time without retries. These artifacts are staging inputs for a release, not automatically published releases. Source archives must come from the same committed tree, and the final release uses one consolidated `SHA256SUM.txt`.
+A version change merged into `master` runs the release workflow. Master pushes affecting package metadata are skipped when that version already has a tag, so later dependency maintenance does not republish an existing version. Pushing a `v*` tag also runs release verification. Manual dispatch defaults to verification only and has an explicit publish option. A release must come from a clean committed tree reachable from `master`; its version tag is created only after verification, or an existing tag must identify that exact commit.
+
+The release workflow directly calls CI and the dependency audit for its own commit. After both pass, it creates Windows and Linux packages, verifies extracted files, tests native application startup and conversion, checks Windows version/maintainer metadata, and exercises Debian installation and removal. A fresh Windows runner then downloads that run's portable ZIP and tests its first launch before starting another Electron application. It also checks 120 isolated version, help, and invalid-command launches under bounded parallel load without retries.
+
+Only after all these jobs pass does the publication job download the same run's three binary assets. It creates source ZIP and tar.gz archives from the exact Git tree and a single `SHA256SUM.txt` covering all five downloads. Publication creates the version tag if missing, stages a draft, verifies the complete uploaded asset inventory and sizes (and server digests when provided), then makes the release public. An incomplete upload remains a draft. An existing public release is never replaced; a draft can be resumed only when it targets the same commit and contains no unrelated assets.
+
+The local build commands do not publish. Manual verification-only runs leave artifacts for review. No external workflow polling is used: dependency, source, package, and cold-start checks are dependencies in the same release run.
 
 ## Workflow permissions
 
-Workflows request read access to repository contents. They use GitHub-owned actions pinned to complete commit hashes, disable persisted checkout credentials, and do not use personal access tokens. Pull request code is never executed through `pull_request_target`.
+Validation and packaging request read access to repository contents. Only the final gated publication job receives `contents: write`; it uses the short-lived Actions token. Workflows use GitHub-owned actions pinned to complete commit hashes and disable persisted checkout credentials. They do not use personal access tokens, and pull request code is never executed through `pull_request_target`.
 
-Dependabot proposes npm and GitHub Actions updates. Updates require review and successful validation; they do not merge automatically. Keep exact dependency versions and the lockfile consistent when accepting updates.
+Dependabot groups compatible npm updates into one weekly proposal and GitHub Actions updates into one separate proposal. Updates require review and successful validation; they do not merge automatically. Keep exact dependency versions and the lockfile consistent when accepting updates. ASAR major upgrades are deferred until the build's CommonJS writer integration is migrated and verified.
 
 ## Maintainer checks
 
-Before merging, inspect the `Test and build (Linux)`, `Test and build (Windows)`, and `Dependency audit` results for the exact proposed commit. A successful cross-build does not replace the native Windows check.
+Keep required pull-request checks, branch deletion/force-push protection, resolved review requirements, linear `master` history, and release-tag protections in place. A release workflow's success describes its exact source commit; checks for a different commit do not satisfy its gates.
 
-Require these checks on pull requests, disallow branch deletion and force pushes, require resolved review conversations, and retain a linear `master` history. A sole maintainer can use a zero-approval pull request rule while still requiring successful checks. Publication of a new repository requires a separate privacy review of its complete history, release files, and metadata.
-
-GitHub's private vulnerability reporting and some hosted security features depend on repository visibility and account entitlements. The presence of `SECURITY.md` does not imply that those features are enabled. Review their availability when changing visibility; never change visibility merely to enable a feature.
+GitHub's private vulnerability reporting and some hosted security features depend on repository visibility and account entitlements. The presence of `SECURITY.md` does not imply that those features are enabled. Review availability when changing visibility; never change visibility merely to enable a feature.
 
 Never upload genuine exports, local settings, authentication helpers, or diagnostic files containing private data as CI artifacts. Review failure logs before sharing them outside the repository.

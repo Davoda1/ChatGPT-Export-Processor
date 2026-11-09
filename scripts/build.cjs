@@ -7,6 +7,7 @@ const {finished, pipeline} = require('node:stream/promises');
 const {build, Platform, Arch} = require('electron-builder');
 const {verify} = require('./verify-package.cjs');
 const {copyDocumentation} = require('./package-documentation.cjs');
+const {compileLinuxEntrypoint} = require('./linux-entrypoint.cjs');
 const root = path.resolve(__dirname, '..');
 const packageInfo = require('../package.json');
 const archiveEpoch = 1767225600;
@@ -82,7 +83,7 @@ async function createDeb(directory, outDir) {
     // its required permissions, without an installer or launcher script.
     await fsp.chmod(path.join(install, 'chrome-sandbox'), 0o4755);
     await fsp.mkdir(path.join(staging, 'usr', 'bin'), {recursive: true});
-    await fsp.symlink('../../opt/chatgpt-export-processor/chatgpt-export-processor', path.join(staging, 'usr', 'bin', 'chatgpt-export-processor'));
+    compileLinuxEntrypoint(path.join(staging, 'usr', 'bin', 'chatgpt-export-processor'));
     const appDir = path.join(staging, 'usr', 'share', 'applications');
     await fsp.mkdir(appDir, {recursive: true});
     await fsp.writeFile(path.join(appDir, 'chatgpt-export-processor.desktop'), '[Desktop Entry]\nType=Application\nName=ChatGPT Export Processor\nComment=Convert and inspect ChatGPT exports locally\nExec=chatgpt-export-processor\nIcon=chatgpt-export-processor\nTerminal=false\nCategories=Utility;Development;\nStartupWMClass=chatgpt-export-processor\n');
@@ -132,12 +133,6 @@ async function main() {
     ['LICENSE', 'LICENSE-ChatGPT-Export-Processor.txt'],
     ['docs/BUILDING.md', 'BUILDING.md'], ['docs/THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.md'],
   ]) await fsp.copyFile(path.join(root, source), path.join(directory, target));
-  if (targetPlatform === 'linux') {
-    await fsp.mkdir(path.join(directory, 'bin'), {recursive: true});
-    const link = path.join(directory, 'bin', 'chatgpt-export-processor');
-    await fsp.rm(link, {force: true});
-    await fsp.symlink('../chatgpt-export-processor', link);
-  }
   console.log(JSON.stringify(verify(directory, targetPlatform), null, 2));
   if (!args.includes('--packages')) return;
   if (targetPlatform === 'win') await zipDirectory(directory, path.join(outDir, `ChatGPT-Export-Processor-${packageInfo.version}-Windows-x64-Portable.zip`));

@@ -7,6 +7,7 @@ const {pipeline} = require('node:stream/promises');
 const {Transform} = require('node:stream');
 const yauzl = require('yauzl');
 const CRC = require('crc-32');
+const {selectExportSource} = require('./export-source.cjs');
 const MAX_ENTRY = 4 * 1024 ** 3;
 const MAX_TOTAL = 16 * 1024 ** 3;
 const MAX_ENTRIES = 100000;
@@ -37,7 +38,7 @@ function safeEntry(entry) {
   const unixMode = (entry.externalFileAttributes >>> 16) & 0xf000;
   if (unixMode === 0xa000) throw new Error('ZIP symbolic links are unsupported.');
 }
-async function unpackZip(file, destination, progress = () => {}, {signal, maxEntry = MAX_ENTRY, maxTotal = MAX_TOTAL, maxEntries = MAX_ENTRIES, roles = null} = {}) {
+async function unpackZip(file, destination, progress = () => {}, {signal, maxEntry = MAX_ENTRY, maxTotal = MAX_TOTAL, maxEntries = MAX_ENTRIES, roles = null, onSource = null} = {}) {
   checkAbort(signal);
   const zip = await new Promise((res, rej) => yauzl.open(file, {lazyEntries:true, autoClose:false, validateEntrySizes:true, strictFileNames:true}, (e,z) => e ? rej(e) : res(z)));
   const found = [], seen = new Set();
@@ -58,10 +59,14 @@ async function unpackZip(file, destination, progress = () => {}, {signal, maxEnt
       });
       zip.readEntry();
     });
+    const source = (!roles || roles.has('original')) ? selectExportSource(entries) : null;
+    const selected = source ? new Set(source.originals) : null;
     for (const e of entries) {
       checkAbort(signal);
       const role = roleFor(e.fileName);
       if (!role || (roles && !roles.has(role))) continue;
+      if (role === 'original' && selected && !selected.has(e)) continue;
+      if (role === 'originalHtml' && source && source.chat !== e) continue;
       if (e.generalPurposeBitFlag & 1) throw new Error('Encrypted ZIP entries are unsupported. Select extracted JSON/HTML files.');
       const unique = role === 'original' ? path.posix.basename(e.fileName).toLowerCase() : role;
       if (seen.has(unique)) throw new Error(`Ambiguous ZIP: more than one ${unique}. Select files explicitly.`);
@@ -82,6 +87,7 @@ async function unpackZip(file, destination, progress = () => {}, {signal, maxEnt
       found.push({file:target, role, label:path.basename(file)+' :: '+path.posix.basename(e.fileName), archive:file, entry:e.fileName});
     }
     if (!found.length) throw new Error('No recognized conversations JSON or chat HTML files in ZIP.');
+    if (onSource) onSource({source, entries, extractedBytes:total});
     return found.sort((a,b) => a.entry.localeCompare(b.entry, 'en', {numeric:true}));
   } finally {
     signal?.removeEventListener('abort', abort);

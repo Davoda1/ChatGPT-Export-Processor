@@ -1,15 +1,17 @@
 # ChatGPT Export Processor
 
-**Version 1.0.0** · Windows and Linux · MIT · Maintained by **davoda1**
+**Version 1.1.0** · Windows and Linux · MIT · Maintained by **davoda1**
 
 Convert ChatGPT export archives into readable JSON and an offline HTML viewer, then inspect what changed. The application combines export conversion with independent preservation checks, findings, and schema inspection in a local desktop workbench.
 
-The input format is a ChatGPT export. Other chat providers and arbitrary HTML documents are not supported. This is an independent project and is not affiliated with OpenAI.
+The input format is a ChatGPT export, including ZIPs with numbered `conversations-N.json` parts, a modern `index.html`, or no `chat.html`. Exports inside a nested folder are supported; source selection keeps one export root and rejects ambiguous combinations. Other chat providers and arbitrary HTML documents are not supported. This is an independent project and is not affiliated with OpenAI.
 
 ## What it does
 
 - Converts supported ChatGPT rich content, citations, and writing blocks while preserving user messages and conversation structure.
-- Produces `conversations-index.json`, `chat-index.html`, a processed bundle, and validation reports in a new output folder.
+- Produces original `conversations.json` and `chat.html`, transformed `conversations-index.json` and `chat-index.html`, a processed bundle, and validation reports in a new output folder.
+- Recreates missing `chat.html` from the original, unconverted conversation JSON; an existing original `chat.html` is copied byte for byte.
+- Includes matching exported `.dat` attachments as local downloads in generated viewers, with their bytes preserved in the output and bundle.
 - Inspects existing converted JSON, HTML, or a processed bundle against the original export when available.
 - Compares conversion rules, user content, graph structure, IDs, JSON/HTML agreement, and known schema signatures.
 - Shows findings with original, expected, and actual evidence rather than treating every warning as a failed conversion.
@@ -33,13 +35,13 @@ The running desktop application, shown with synthetic data. The review candidate
 
 ## Download and install
 
-Download **v1.0.0** from [GitHub Releases](https://github.com/davoda1/ChatGPT-Export-Processor/releases/tag/v1.0.0). Windows and Linux packages target x64/amd64 systems.
+Download **v1.1.0** from [GitHub Releases](https://github.com/davoda1/ChatGPT-Export-Processor/releases/tag/v1.1.0). Windows and Linux packages target x64/amd64 systems.
 
 | Package | Installation |
 | --- | --- |
 | Windows portable ZIP | Extract the complete ZIP into a folder and run `ChatGPT-Export-Processor.exe` at its root. Keep the accompanying files together. |
-| Debian/Ubuntu `.deb` | Install with `sudo apt install ./chatgpt-export-processor_1.0.0_amd64.deb`, then open the application from the desktop menu. |
-| Linux portable `.tar.gz` | Extract into an empty folder and run `bin/chatgpt-export-processor`. The entrypoint is a symlink to the native executable. |
+| Debian/Ubuntu `.deb` | Install with `sudo apt install ./chatgpt-export-processor_1.1.0_amd64.deb`, then open the application from the desktop menu. |
+| Linux portable `.tar.gz` | Extract into an empty folder and run the native `./chatgpt-export-processor` executable at its root. |
 | Source ZIP or `.tar.gz` | Follow the source build instructions below. Dependencies are installed separately. |
 
 Use the release's single `SHA256SUM.txt` to verify downloads. On Linux, run `sha256sum --ignore-missing -c SHA256SUM.txt` in the download folder. On Windows, compare the SHA-256 reported by PowerShell's `Get-FileHash` with the corresponding entry.
@@ -53,6 +55,8 @@ The Windows executable is unsigned and may show an unknown-publisher prompt. Lin
 3. Select the optional standard, document, and chat-message writing-block transformations. Email conversion stays enabled.
 4. Start the conversion. The application writes into a fresh output subfolder and leaves input files unchanged.
 5. Review the overview, findings, and schema checks before relying on the result.
+
+Open `chat-index.html` to view the transformed conversations. When the export did not contain `chat.html`, the recreated `chat.html` instead contains the original conversation data. Keep the `assets` folder beside the HTML files for attachment downloads to work, or extract the complete processed bundle. Matching attachment bytes are included in the bundle and covered by its `SHA256SUM.txt`; missing files do not produce invented downloads. Generated viewers make no automatic remote requests.
 
 Cancellation removes the current unfinished output owned by that run. Existing exports and earlier completed output folders are not replacement targets.
 
@@ -83,11 +87,11 @@ The default finding list retains up to 10,000 entries while counts continue to r
 
 Reports can be exported as JSON, HTML, and CSV. Reports omit absolute filesystem paths and raw evidence panes, but include input basenames, conversation titles, identifiers, rule details, counts, and hashes. They are private local reports, not anonymous exports: inspect them before sharing.
 
-The desktop stores only appearance preferences in its separate `ChatGPT-Export-Processor-Public` settings directory. It does not reuse the settings of the earlier personal converter or Traceglass. Keep the originals and any sensitive output in a location you control.
+The desktop stores only appearance preferences in its `ChatGPT-Export-Processor-Public` settings directory. Keep the originals and any sensitive output in a location you control.
 
 ## Run from source
 
-Install Node.js 24 and npm 11. Runtime and tool dependencies are pinned in `package-lock.json`.
+Install Node.js 26.13.0 and npm 11. Runtime and tool dependencies are pinned in `package-lock.json`.
 
 ```sh
 npm ci
@@ -144,10 +148,10 @@ npm run build:win
 
 `build:*` creates unpacked validation builds in `dist`. It never publishes anything. Build Windows packages on Windows for the authoritative platform test; a cross-build on Linux is not a substitute for a native Windows run.
 
-When preparing an approved release, `npm run pack:linux` creates a native Linux tar archive and Debian package; `npm run pack:win` creates a portable ZIP with the native EXE at its root. Linux packages expose a native executable or a symlink to it. There are no launcher wrappers. Release packaging does not upload files or create GitHub releases.
+When preparing an approved release, `npm run pack:linux` creates a native Linux tar archive and Debian package; `npm run pack:win` creates a portable ZIP with the native EXE at its root. The Linux portable archive has a native executable at its root, and the Debian package installs a native entrypoint in `/usr/bin`. There are no shell or batch launchers. Release packaging does not upload files or create GitHub releases.
 
 See [BUILDING.md](docs/BUILDING.md), [CI.md](docs/CI.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 ## Project status
 
-This is the first public edition at version 1.0.0. GitHub Actions validates the source and native Windows and Linux builds. Release packaging and publication are separate from continuous integration.
+Version 1.1.0 adds compatibility with current ChatGPT export archives. GitHub Actions validates source, dependencies, and native Windows and Linux packages before a tagged release is published automatically.

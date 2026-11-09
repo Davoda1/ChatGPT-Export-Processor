@@ -845,7 +845,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-## marked@18.1.1
+## marked@18.1.2
 
 Declared license: MIT
 

@@ -90,7 +90,7 @@ function profileIndex(value) {
 function knownShell(meta) {
   if (meta.prefixSha256 === shell.prefixSha256 && meta.suffixSha256 === shell.suffixSha256) return 'legacy 1.1.0';
   // Only shell bytes are shared. Expected conversation transformations always use the independent reference above.
-  try {const {prefix,suffix}=require('../viewer/shell.cjs').getShell();if(typeof prefix==='string'&&typeof suffix==='string'&&meta.prefixSha256===hash(prefix)&&meta.suffixSha256===hash(suffix))return 'public 1.0.0';} catch { /* The standalone validator also works without a converter. */ }
+  try {const {prefix,suffix}=require('../viewer/shell.cjs').getShell();if(typeof prefix==='string'&&typeof suffix==='string'&&meta.prefixSha256===hash(prefix)&&(meta.suffixBaseSha256||meta.suffixSha256)===hash(suffix))return `public ${require('../../package.json').version}`;} catch { /* The standalone validator also works without a converter. */ }
   return null;
 }
 async function audit(spec,{progress=()=>{},keepInputs=false,signal}={}){

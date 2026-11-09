@@ -10,6 +10,8 @@ const {Transform} = require('node:stream');
 const crc32 = require('crc-32');
 const {verify} = require('./verify-package.cjs');
 const {verifyDocumentation} = require('./package-documentation.cjs');
+const {verifyNativeBinary} = require('./linux-entrypoint.cjs');
+const {withinCheckout} = require('./release-paths.cjs');
 const version = require('../package.json').version;
 
 async function hash(file) {
@@ -95,8 +97,9 @@ function verifyInstalled() {
   const directory = '/opt/chatgpt-export-processor', entrypoint = '/usr/bin/chatgpt-export-processor';
   verify(directory, 'linux');
   verifyDocumentation('/usr/share/doc/chatgpt-export-processor');
-  assert.ok(fs.lstatSync(entrypoint).isSymbolicLink(), 'Installed bin entry must be a direct native symlink.');
-  assert.equal(fs.realpathSync(entrypoint), fs.realpathSync(path.join(directory, 'chatgpt-export-processor')));
+  const installedEntrypoint = verifyNativeBinary(entrypoint, 'linux');
+  assert.equal(installedEntrypoint.uid, 0); assert.equal(installedEntrypoint.gid, 0);
+  assert.equal(installedEntrypoint.mode & 0o7777, 0o755);
   const installDirectory = fs.statSync(directory);
   assert.equal(installDirectory.uid, 0); assert.equal(installDirectory.gid, 0); assert.equal(installDirectory.mode & 0o022, 0);
   const sandbox = fs.statSync(path.join(directory, 'chrome-sandbox'));
@@ -106,7 +109,7 @@ function verifyInstalled() {
   for (const file of installedPaths()) assert.ok(fs.existsSync(file), 'Installed application file is missing.');
   const desktop = fs.readFileSync('/usr/share/applications/chatgpt-export-processor.desktop', 'utf8');
   assert.match(desktop, /^Exec=chatgpt-export-processor$/m);
-  console.log(JSON.stringify({passed: true, kind: 'installed Debian package', version, nativeBinSymlink: true, rootOwnedSandbox: true, desktopIntegration: true}, null, 2));
+  console.log(JSON.stringify({passed: true, kind: 'installed Debian package', version, nativeBinExecutable: true, rootOwnedSandbox: true, desktopIntegration: true}, null, 2));
 }
 function verifyRemoved() {
   assert.equal(process.platform, 'linux');
@@ -122,6 +125,7 @@ async function main() {
   if (args.length === 1 && args[0] === '--installed') return verifyInstalled();
   if (args.length === 1 && args[0] === '--removed') return verifyRemoved();
   if (args.length !== 6 || args[0] !== '--archive' || args[2] !== '--reference' || args[4] !== '--destination') throw new Error('Usage: node scripts/test-release.cjs --archive FILE --reference DIRECTORY --destination NEW_DIRECTORY | --installed | --removed');
-  await verifyArchive(path.resolve(args[1]), path.resolve(args[3]), path.resolve(args[5]));
+  const root = path.resolve(__dirname, '..');
+  await verifyArchive(withinCheckout(root, args[1]), withinCheckout(root, args[3]), withinCheckout(root, args[5], {mustExist: false}));
 }
 main().catch(error => {console.error(error.message); process.exitCode = 1;});

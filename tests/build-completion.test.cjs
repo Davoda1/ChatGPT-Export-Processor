@@ -9,6 +9,7 @@ const asar = require('@electron/asar');
 const disk = require('@electron/asar/lib/disk');
 const {AsarPackager} = require('app-builder-lib/out/asar/asarUtil');
 const {withAsarWriteCompletion} = require('../scripts/build.cjs');
+const version = require('../package.json').version;
 
 test('the production builder waits for complete ASAR bytes and restores its writer', async t => {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'processor-build-test-'));
@@ -16,7 +17,7 @@ test('the production builder waits for complete ASAR bytes and restores its writ
   const archive = path.join(temporary, 'app.asar');
   const members = [
     {name: 'payload.bin', content: Buffer.alloc(128 * 1024, 0x61)},
-    {name: 'package.json', content: Buffer.from(JSON.stringify({name: 'chatgpt-export-processor', version: '1.0.0', author: 'davoda1'}))},
+    {name: 'package.json', content: Buffer.from(JSON.stringify({name: 'chatgpt-export-processor', version, author: 'davoda1'}))},
   ];
   const streams = members.map(({name, content}) => ({
     path: name, type: 'file', stat: {size: content.length, mode: 0o100644},

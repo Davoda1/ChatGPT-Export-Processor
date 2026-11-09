@@ -1,18 +1,66 @@
-name: Release build
+name: Release 1.1.0
 
 on:
+  push:
+    branches: [master]
+    tags: ['v*']
+    paths: ['package.json', 'package-lock.json']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish this version after all verification gates pass
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-build-${{ github.ref }}
+  group: release-build-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
+  plan:
+    name: Select release version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - name: Check out the source and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.0'
+          package-manager-cache: false
+      - name: Select a new version or explicit verification run
+        id: plan
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_PUBLISH: ${{ inputs.publish || false }}
+        run: node scripts/publish-release.cjs plan >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Source and native CI
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  dependency-audit:
+    name: Locked dependency audit
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    uses: ./.github/workflows/dependencies.yml
+
   package:
     name: Verify release (${{ matrix.name }})
+    needs: [validate, dependency-audit]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     strategy:
@@ -23,12 +71,12 @@ jobs:
             os: ubuntu-24.04
             platform: linux
             unpacked: linux-unpacked
-            archive: ChatGPT-Export-Processor-1.0.0-Linux-amd64.tar.gz
+            archive: ChatGPT-Export-Processor-1.1.0-Linux-amd64.tar.gz
           - name: Windows
             os: windows-2025
             platform: win
             unpacked: win-unpacked
-            archive: ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip
+            archive: ChatGPT-Export-Processor-1.1.0-Windows-x64-Portable.zip
     env:
       CI: 'true'
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -41,7 +89,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24.19.0'
+          node-version: '26.13.0'
           package-manager-cache: false
 
       - name: Use the declared npm version
@@ -93,8 +141,9 @@ jobs:
           $metadata = (Get-Item 'test-results/release/ChatGPT-Export-Processor.exe').VersionInfo
           if ($metadata.CompanyName -cne 'davoda1') { throw 'Unexpected native maintainer metadata.' }
           if ($metadata.ProductName -cne 'ChatGPT Export Processor') { throw 'Unexpected native product metadata.' }
-          if ($metadata.FileVersion.Trim() -notmatch '^1\.0\.0(?:\.0)?$') { throw 'Unexpected native file version.' }
-          if ($metadata.ProductVersion.Trim() -notmatch '^1\.0\.0(?:\.0)?$') { throw 'Unexpected native product version.' }
+          $expectedVersion = [regex]::Escape((Get-Content package.json | ConvertFrom-Json).version)
+          if ($metadata.FileVersion.Trim() -notmatch ('^' + $expectedVersion + '(?:\.0)?$')) { throw 'Unexpected native file version.' }
+          if ($metadata.ProductVersion.Trim() -notmatch ('^' + $expectedVersion + '(?:\.0)?$')) { throw 'Unexpected native product version.' }
           Write-Output 'PASS: native Windows version and maintainer metadata.'
 
       - name: Test the extracted native CLI
@@ -116,7 +165,7 @@ jobs:
 
       - name: Install the Debian package with its dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get install --yes --no-install-recommends ./dist/chatgpt-export-processor_1.0.0_amd64.deb
+        run: sudo apt-get install --yes --no-install-recommends ./dist/chatgpt-export-processor_1.1.0_amd64.deb
 
       - name: Verify installed Debian metadata and native entrypoints
         if: runner.os == 'Linux'
@@ -124,13 +173,13 @@ jobs:
 
       - name: Test the installed Debian native CLI
         if: runner.os == 'Linux'
-        run: npm run test:packaged -- --dir /opt/chatgpt-export-processor
+        run: npm run test:packaged -- --dir /usr/bin
 
       - name: Test the installed Debian desktop
         if: runner.os == 'Linux'
         env:
           TEST_DESKTOP_DISPLAY: '1'
-        run: xvfb-run --auto-servernum npm run test:desktop -- --dir /opt/chatgpt-export-processor
+        run: xvfb-run --auto-servernum npm run test:desktop -- --dir /usr/bin
 
       - name: Remove the Debian package
         if: always() && runner.os == 'Linux'
@@ -147,10 +196,10 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-linux-1.0.0
+          name: release-linux-1.1.0
           path: |
-            dist/ChatGPT-Export-Processor-1.0.0-Linux-amd64.tar.gz
-            dist/chatgpt-export-processor_1.0.0_amd64.deb
+            dist/ChatGPT-Export-Processor-1.1.0-Linux-amd64.tar.gz
+            dist/chatgpt-export-processor_1.1.0_amd64.deb
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -159,15 +208,13 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-windows-1.0.0
-          path: dist/ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip
+          name: release-windows-1.1.0
+          path: dist/ChatGPT-Export-Processor-1.1.0-Windows-x64-Portable.zip
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
 
-      # Artifacts remain private with the repository. A successful build does
-      # not create a tag or publish a GitHub release; publishing is a separate
-      # maintainer action after checking all workflows for the selected commit.
+      # Only this workflow run's verified artifacts reach the publication job.
 
   windows-cold-start:
     name: Verify Windows first launch
@@ -187,7 +234,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24.19.0'
+          node-version: '26.13.0'
           package-manager-cache: false
 
       - name: Use the declared npm version
@@ -201,12 +248,12 @@ jobs:
       - name: Download this run's verified Windows package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-windows-1.0.0
+          name: release-windows-1.1.0
           path: test-results/download
 
       - name: Extract the portable ZIP with Windows
         shell: pwsh
-        run: Expand-Archive -LiteralPath 'test-results/download/ChatGPT-Export-Processor-1.0.0-Windows-x64-Portable.zip' -DestinationPath 'test-results/cold-start'
+        run: Expand-Archive -LiteralPath 'test-results/download/ChatGPT-Export-Processor-1.1.0-Windows-x64-Portable.zip' -DestinationPath 'test-results/cold-start'
 
       - name: Test cold and repeated native CLI startup and exit
         run: node scripts/test-cli-lifecycle.cjs --dir test-results/cold-start
@@ -216,3 +263,43 @@ jobs:
 
       - name: Test the extracted desktop with its sandbox enabled
         run: npm run test:desktop -- --dir test-results/cold-start
+
+  publish:
+    name: Publish verified release
+    if: needs.plan.outputs.publish == 'true'
+    needs: [plan, validate, dependency-audit, package, windows-cold-start]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the verified source and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.0'
+          package-manager-cache: false
+
+      - name: Download this run's verified packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*-1.1.0
+          path: dist/release
+          merge-multiple: true
+
+      - name: Prepare exact-tree sources and the combined checksum manifest
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/publish-release.cjs prepare --assets dist/release
+
+      - name: Publish the complete verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/publish-release.cjs publish --assets dist/release

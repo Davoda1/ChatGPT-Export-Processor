@@ -90,6 +90,24 @@ async function* readRecords(file, meta = {}, onProgress = () => {}, {signal} = {
     if (isHtml) {
       const tail = Buffer.concat(suffix); decode(tail);
       meta.suffixSha256 = hash(tail); meta.suffixBytes = tail.length;
+      // Attachment metadata is inert export data, not part of the viewer's
+      // trusted executable shell. Normalize only its exact generated location
+      // and shape; any extra markup remains part of the checked shell hash.
+      const text = tail.toString();
+      const assetBlock = /^;<\/script>\n<script type="application\/json" id="archive-assets">([^<]*)<\/script>\n/.exec(text);
+      if (assetBlock) {
+        try {
+          const assets = JSON.parse(assetBlock[1]);
+          const canonicalAssets = JSON.stringify(assets).replace(/[<>&\u2028\u2029]/g, character => '\\u' + character.charCodeAt(0).toString(16).padStart(4,'0'));
+          const safeLink = value => {
+            if (typeof value !== 'string' || !value.startsWith('assets/') || !/\.dat$/i.test(value) || /[\\\x00-\x20?#]/.test(value)) return false;
+            try { return value.split('/').every(segment => { const decoded=decodeURIComponent(segment); return decoded && decoded!=='.' && decoded!=='..' && !/[\\/\x00-\x1f:]/.test(decoded); }); } catch { return false; }
+          };
+          if (assetBlock[1] === canonicalAssets && assets && typeof assets === 'object' && !Array.isArray(assets) && Object.values(assets).every(paths => Array.isArray(paths) && paths.every(safeLink))) {
+            meta.suffixBaseSha256 = hash(Buffer.from(';</script>\n' + text.slice(assetBlock[0].length)));
+          }
+        } catch { /* Malformed metadata must not receive trusted-shell status. */ }
+      }
       meta.htmlClosings = (tail.toString().match(/<\/html\s*>/gi) || []).length;
     }
     meta.sha256 = sha.digest('hex'); meta.records = record;
