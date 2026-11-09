@@ -1,5 +1,4 @@
 "use strict";
-// Public Processor 1.0.0. Transformation rules derived from Processor 1.1.0.
 // Copyright (c) 2026 davoda1. MIT license.
 const START = "\ue200";
 const END = "\ue201";

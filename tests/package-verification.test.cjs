@@ -9,6 +9,7 @@ const {finished} = require('node:stream/promises');
 const asar = require('@electron/asar');
 const {verify} = require('../scripts/verify-package.cjs');
 const {copyDocumentation} = require('../scripts/package-documentation.cjs');
+const version = require('../package.json').version;
 
 async function fixture(t, options = {}) {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'processor-package-test-'));
@@ -20,7 +21,7 @@ async function fixture(t, options = {}) {
   await fs.writeFile(path.join(directory, 'ChatGPT-Export-Processor.exe'), Buffer.from([0x4d, 0x5a, 0, 0]));
   for (const name of ['README.md', 'BUILDING.md', 'LICENSE-ChatGPT-Export-Processor.txt', 'THIRD-PARTY-NOTICES.md', 'LICENSE.electron.txt', 'LICENSES.chromium.html']) await fs.writeFile(path.join(directory, name), 'Test fixture\n');
   await copyDocumentation(path.resolve(__dirname, '..'), directory);
-  if (!options.missingManifest) await fs.writeFile(path.join(source, 'package.json'), JSON.stringify({name: 'chatgpt-export-processor', version: '1.0.0', author: 'davoda1'}));
+  if (!options.missingManifest) await fs.writeFile(path.join(source, 'package.json'), JSON.stringify({name: 'chatgpt-export-processor', version, author: 'davoda1'}));
   const icon = path.join(source, 'build', 'icons', '256x256.png');
   if (options.directoryIcon) await fs.mkdir(icon);
   else if (!options.missingIcon) await fs.copyFile(path.join(__dirname, '..', 'build', 'icons', '256x256.png'), icon);
@@ -37,7 +38,7 @@ async function fixture(t, options = {}) {
 
 test('package verification reads nested ASAR icons on every host platform', async t => {
   const directory = await fixture(t);
-  assert.equal(verify(directory, 'win').version, '1.0.0');
+  assert.equal(verify(directory, 'win').version, version);
 });
 
 for (const [name, options, pattern] of [

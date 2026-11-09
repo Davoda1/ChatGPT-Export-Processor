@@ -292,7 +292,7 @@ systemTheme.addEventListener('change',()=>{if(state.theme==='system')applyPrefer
     if(!api) throw new Error('The desktop bridge is unavailable. Open this interface through the installed application.');
     api.onEvent(onEvent);
     const initial = await api.getState(); state.selection=initial.selection||{};state.result=initial.result?.report||initial.result||null;state.running=!!initial.running;state.outputAvailable=initial.outputAvailable===true;
-    $('appVersion').textContent=initial.version||'1.0.0';applyPreferences(initial.preferences);renderResult();updateWorkspace();
+    $('appVersion').textContent=initial.version||'1.1.0';applyPreferences(initial.preferences);renderResult();updateWorkspace();
   } catch(error) { renderResult();updateWorkspace();showError(error); }
   finally { if(api?.ready) await api.ready(); }
 })();

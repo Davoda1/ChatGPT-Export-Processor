@@ -11,6 +11,7 @@ const { pipeline } = require('node:stream/promises');
 const CRC = require('crc-32');
 const { readRecords } = require('./reader.cjs');
 const { unpackZip } = require('./inputs.cjs');
+const { findAssets, copyAssets } = require('./export-assets.cjs');
 const converter = require('./converter.cjs');
 
 function checkAbort(signal) {
@@ -99,8 +100,8 @@ async function writeConversations(sources, paths, enabled, progress, signal) {
   }
 }
 
-async function writeHtml(source, target, progress, signal) {
-  const { prefix, suffix } = require('../viewer/shell.cjs').getShell();
+async function writeHtml(source, target, progress, signal, assets = null) {
+  const { prefix, suffix } = require('../viewer/shell.cjs').getShell({assets});
   const output = await fsp.open(target, 'wx', 0o600);
   let count = 0;
   try {
@@ -154,7 +155,7 @@ async function writeStoredZip(files, destination, { signal, progress = () => {},
     for (const file of files) {
       checkAbort(signal);
       const name = Buffer.from(file.name);
-      if (!file.name || file.name !== path.posix.basename(file.name) || /[\\\x00-\x1f]/.test(file.name) || name.length > 65535) {
+      if (!file.name || file.name.startsWith('/') || /^[a-z]:/i.test(file.name) || file.name.split('/').some(part => !part || part === '.' || part === '..') || /[\\\x00-\x1f]/.test(file.name) || name.length > 65535) {
         throw new Error('Unsafe output ZIP filename.');
       }
       let crc = 0;
@@ -256,7 +257,8 @@ async function processExport(spec, { progress = () => {}, signal } = {}) {
     checkAbort(signal);
     await fsp.mkdir(staging, { mode: 0o700 });
     progress({ phase: 'Reading ZIP', detail: path.basename(input) });
-    const inputs = await unpackZip(input, staging, progress, { signal });
+    let archive;
+    const inputs = await unpackZip(input, staging, progress, { signal, roles:new Set(['original','originalHtml']), onSource:value => { archive = value; } });
     checkAbort(signal);
     const originals = selectOriginals(inputs);
     const htmlInputs = inputs.filter(item => item.role === 'originalHtml');
@@ -270,13 +272,20 @@ async function processExport(spec, { progress = () => {}, signal } = {}) {
     };
     progress({ phase: 'Converting JSON', detail: `${originals.length} source file(s)` });
     const conversations = await writeConversations(originals, paths, enabled, progress, signal);
+    if (!conversations) throw new Error('The export contains no conversations.');
+    const attachmentData = await findAssets(paths.original, archive.entries, archive.source?.assetRoot || '.', {signal});
+    const attachmentFiles = await copyAssets(input, attachmentData.files, outputDir, {signal,progress,extractedBytes:archive.extractedBytes});
+    paths.originalHtml = path.join(outputDir, 'chat.html');
     if (htmlInputs.length) {
-      paths.originalHtml = path.join(outputDir, 'chat.html');
       await copyExclusive(htmlInputs[0].file, paths.originalHtml, signal);
+    } else {
+      progress({phase:'Recreating source HTML', detail:'Creating chat.html from original conversation data'});
+      await writeHtml(paths.original, paths.originalHtml, progress, signal, attachmentData.assets);
     }
-    const htmlConversations = await writeHtml(paths.indexJson, paths.indexHtml, progress, signal);
+    const htmlConversations = await writeHtml(paths.indexJson, paths.indexHtml, progress, signal, attachmentData.assets);
     const files = ['original', 'indexJson', 'indexHtml', ...(paths.originalHtml ? ['originalHtml'] : [])]
       .map(key => ({ name: path.basename(paths[key]), file: paths[key] }));
+    files.push(...attachmentFiles);
     const sums = [];
     for (const file of files) {
       checkAbort(signal);
@@ -289,7 +298,7 @@ async function processExport(spec, { progress = () => {}, signal } = {}) {
     await fsp.rm(staging, { recursive: true, force: true });
     checkAbort(signal);
     progress({ phase: 'Conversion complete', detail: `${conversations} conversations; independent validation follows`, conversations });
-    return { paths, outputDir, conversations, htmlConversations, profile };
+    return { paths, outputDir, conversations, htmlConversations, profile, sourceHtmlGenerated:!htmlInputs.length, attachments:attachmentFiles.length };
   } catch (error) {
     await fsp.rm(outputDir, { recursive: true, force: true });
     throw error;

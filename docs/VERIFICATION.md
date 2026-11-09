@@ -1,10 +1,10 @@
-# Step 2 verification — ChatGPT Export Processor 1.0.0
+# Verification record — ChatGPT Export Processor 1.0.0
 
-Date: 2026-10-22. Stage: implementation and local verification. This is a source review snapshot, not a published release.
+Historical local verification recorded on 2026-10-22 for version 1.0.0. These measurements are not claims about the 1.1.0 release; current results are recorded by the workflows for each exact commit.
 
 ## Delivered implementation
 
-The independent public edition contains the approved Workbench interface, a local conversion pipeline, independent validation derived from Traceglass, safe offline HTML viewing, a command-line interface, and source/build documentation. Its identity and appearance preferences are separate from the earlier personal applications.
+The application contains a desktop workbench, local conversion pipeline, independent validation, safe offline HTML viewer, command-line interface, and source/build documentation.
 
 Server deployment, upload/backup destinations, SSH dependencies, infrastructure configuration, credential handling, and the overwrite key are absent. Conversion creates an exclusive new output folder. Inspection does not modify inputs. Cancelling a task removes only that task's unfinished output and temporary inputs.
 
@@ -19,7 +19,7 @@ Server deployment, upload/backup destinations, SSH dependencies, infrastructure 
 | Packaged Linux runtime | Passed version, conversion and inspection through the native executable, ASAR dependencies/worker, and native `bin` symlink |
 | Windows x64 cross-build | Passed native PE, version/maintainer metadata, icon, ASAR contents, and entrypoint checks |
 | Dependency audit | 0 known vulnerabilities reported for runtime and development dependencies at verification time |
-| Publication privacy scan | Passed project-owned text and an additional private-source audit; no maintainer email, personal infrastructure URL/path, or credential found |
+| Publication privacy scan | Passed project-owned text and an additional source audit; no maintainer email, personal infrastructure URL/path, or credential found |
 
 The native desktop test used a temporary test bootstrap to substitute the OS single-instance mutex because the verification host prohibits its socket type. The remaining production main process, preload, IPC, renderer, filesystem pipeline, and validation worker were exercised. Privileged-container tests used a test-only sandbox launch exception; production code does not disable the sandbox. Normal end-user sandbox/desktop integration must still be checked on the platform runners.
 
@@ -53,7 +53,7 @@ Original JSON and ZIP hashes remained unchanged, all user content was preserved,
 
 ## Reproduce
 
-Use the pinned lockfile with Node.js 24 and npm 11. Install the Playwright browser or set its documented executable override when an existing compatible browser is available.
+Use the pinned lockfile with Node.js 26.13.0 and npm 11. Install the Playwright browser or set its documented executable override when an existing compatible browser is available.
 
 ```sh
 npm ci
@@ -73,8 +73,8 @@ Run the Windows build and packaged test on Windows for the authoritative native 
 
 ## Remaining gates and scope
 
-Native Windows execution was not available on this Linux verification host. It remains a required Step 3 runner check. Installer installation/removal and final distributable archive checks belong to release preparation. No claim is made that untested future ChatGPT formats are supported; schema drift and conversion uncertainty remain visible in the application.
+Native Windows execution was not available on this Linux verification host. It was a required follow-up runner check. Installer installation/removal and final distributable archive checks belong to release preparation. No claim is made that untested future ChatGPT formats are supported; schema drift and conversion uncertainty remain visible in the application.
 
 Only synthetic conversation fixtures were used. Runtime reports can contain selected filenames, conversation titles and IDs, and should be reviewed before sharing. Upstream dependency license notices retain their required authorship text; they are not the maintainer's contact/configuration data.
 
-GitHub workflows, repository settings, first commits, and all release uploads remain deferred to the user's later steps. No repository visibility change, commit, tag, release, or GitHub upload was performed in Step 2.
+For current release gates and publication behavior, see [CI.md](CI.md). Version 1.1.0 release verification includes current-format synthetic exports, native Windows and Linux package checks, Debian installation/removal, a fresh Windows first launch, and dependency auditing. A release is published only after its required workflow jobs pass.

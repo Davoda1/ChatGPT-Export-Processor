@@ -2,11 +2,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {verifyDocumentation} = require('./package-documentation.cjs');
+const {verifyNativeBinary} = require('./linux-entrypoint.cjs');
+const expectedVersion = require('../package.json').version;
 function verify(dir, platform) {
   const executable = path.join(dir, platform === 'win' ? 'ChatGPT-Export-Processor.exe' : 'chatgpt-export-processor');
-  const magic = Buffer.alloc(4), descriptor = fs.openSync(executable, 'r');
-  try { fs.readSync(descriptor, magic, 0, 4, 0); } finally { fs.closeSync(descriptor); }
-  if (platform === 'win' ? magic[0] !== 0x4d || magic[1] !== 0x5a : !magic.equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46]))) throw new Error('The application entrypoint must be a native binary.');
+  verifyNativeBinary(executable, platform);
   if (!fs.statSync(path.join(dir, 'resources', 'app.asar')).isFile()) throw new Error('Packaged application archive is missing.');
   for (const notice of ['README.md', 'BUILDING.md', 'LICENSE-ChatGPT-Export-Processor.txt', 'THIRD-PARTY-NOTICES.md', 'LICENSE.electron.txt', 'LICENSES.chromium.html']) {
     if (!fs.statSync(path.join(dir, notice)).isFile()) throw new Error('Packaged documentation or legal notice is missing: ' + notice);
@@ -18,9 +18,7 @@ function verify(dir, platform) {
     if (/\.(?:sh|cmd|bat|ps1)$/i.test(name) || /-launcher$/.test(name)) throw new Error('Launcher scripts are not permitted: ' + name);
   }
   if (platform === 'linux') {
-    const link = path.join(dir, 'bin', 'chatgpt-export-processor');
-    if (!fs.lstatSync(link).isSymbolicLink() || fs.realpathSync(link) !== fs.realpathSync(executable)) throw new Error('Linux bin entry must point directly to the native executable.');
-    if (!(fs.statSync(executable).mode & 0o111)) throw new Error('Native executable has no executable permission.');
+    if (fs.existsSync(path.join(dir, 'bin'))) throw new Error('Linux portable packages must use the native executable at archive root.');
     if (!fs.statSync(path.join(dir, 'chrome-sandbox')).isFile()) throw new Error('The Linux sandbox helper is missing.');
   }
   const asar = require('@electron/asar');
@@ -39,7 +37,7 @@ function verify(dir, platform) {
   const icon = requiredFile('build/icons/256x256.png');
   if (icon.length < 24 || !icon.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || icon.readUInt32BE(16) !== 256 || icon.readUInt32BE(20) !== 256) throw new Error('Packaged window icon is missing or invalid.');
   const manifest = JSON.parse(requiredFile('package.json'));
-  if (manifest.version !== '1.0.0' || manifest.author !== 'davoda1' || manifest.name !== 'chatgpt-export-processor') throw new Error('Unexpected packaged identity.');
+  if (manifest.version !== expectedVersion || manifest.author !== 'davoda1' || manifest.name !== 'chatgpt-export-processor') throw new Error('Unexpected packaged identity.');
   if (Object.keys(manifest.dependencies || {}).some(x => /ssh|ftp/.test(x))) throw new Error('Unexpected network deployment dependency.');
   const forbidden = names.filter(x => /(?:^|\/)(?:configs(?:\.example)?\.txt|deploy\.cjs|\.env|\.git)(?:\/|$)/i.test(x));
   if (forbidden.length) throw new Error('Private or legacy deployment files were packaged.');

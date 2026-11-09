@@ -41,7 +41,7 @@ test('numeric split-file order is preserved without deduplication or missing rec
   assert.deepEqual((await collect(result.paths.original)).map(item => item.id), ['synthetic-a', 'synthetic-b']);
   assert.equal(result.conversations, 2);
   assert.equal(result.htmlConversations, 2);
-  assert.equal(result.paths.originalHtml, undefined);
+  assert.deepEqual(await collect(result.paths.originalHtml), [a,b]);
 });
 
 test('source HTML is preserved but cannot cause the converted outputs to disagree', async t => {

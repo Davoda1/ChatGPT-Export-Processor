@@ -26,7 +26,7 @@ const fixture = {
       let listener, run, selection = {}, preferences = { theme: 'system', density: 'comfortable' };
       window.uiTest = { ready: false, starts: [], exports: [], revealed: false };
       window.processor = {
-        async getState() { return { version: '1.0.0', preferences, selection, result: null }; },
+        async getState() { return { version: '1.1.0', preferences, selection, result: null }; },
         async ready() { window.uiTest.ready = true; },
         onEvent(callback) { listener = callback; return () => { listener = null; }; },
         async chooseInput(role) { const names = { original: 'synthetic-chatgpt-export.zip', indexJson: 'conversations-index.json', indexHtml: 'chat-index.html', bundle: 'processed.zip' }; return selection[role] = { name: names[role], token: role }; },

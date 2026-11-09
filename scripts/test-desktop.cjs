@@ -29,7 +29,12 @@ async function run() {
     const preferencesRoot = path.join(fixtureRoot, 'preferences');
     await fs.mkdir(outputs); await fs.mkdir(preferencesRoot);
     const original = [conversation('synthetic-desktop', ':::writing{variant="email" subject="Synthetic subject"}\nSynthetic body.\n:::')];
-    await fs.writeFile(input, fixtureZip([['conversations.json', JSON.stringify(original)]], {deflate:true}));
+    original[0].mapping.user.message.content.parts.push({content_type:'image_asset_pointer', asset_pointer:'file-service://file-native-fixture'});
+    await fs.writeFile(input, fixtureZip([
+      ['export/index.html', '<!doctype html><script>throw new Error("Export index must never execute")</script>'],
+      ['export/conversations-000.json', JSON.stringify(original)],
+      ['export/files/file-native-fixture.dat', 'Synthetic attachment bytes'],
+    ], {deflate:true}));
     const inputHash = sha(await fs.readFile(input));
     let launchTarget = appRoot;
     if (observations.singletonShim) {
@@ -84,9 +89,15 @@ async function run() {
     assert.equal(directories.length,1);
     const output = path.join(outputs,directories[0]);
     const converted = JSON.parse(await fs.readFile(path.join(output,'conversations-index.json'),'utf8'));
+    const rawHtml = [];
+    for await (const record of require('../src/core/reader.cjs').readRecords(path.join(output,'chat.html'))) rawHtml.push(record.value);
+    assert.deepEqual(rawHtml,original,'Missing chat.html must be recreated from raw conversations.');
+    const assets=await fs.readdir(path.join(output,'assets'));
+    assert.equal(assets.length,1);
+    assert.equal(await fs.readFile(path.join(output,'assets',assets[0]),'utf8'),'Synthetic attachment bytes');
     assert.equal(converted[0].mapping.user.message.content.parts[0], original[0].mapping.user.message.content.parts[0]);
     assert.match(converted[0].mapping.assistant.message.content.parts[0], /SUBJECT/);
-    observations.checks.push('native dialog selection → real IPC → conversion worker → independent PASS report', 'original ZIP and user text preserved', 'completed output folder available');
+    observations.checks.push('modern export → native dialogs → real IPC → conversion worker → independent PASS report', 'raw chat.html recreated and exported attachment preserved', 'original ZIP and user text preserved', 'completed output folder available');
     await page.locator('#headAction').click(); await page.locator('#reportFormat').selectOption('json'); await page.locator('#saveReport').click();
     await page.waitForFunction(() => document.querySelector('#modalBackdrop').hidden);
     const savedReport = JSON.parse(await fs.readFile(reportFile,'utf8'));
