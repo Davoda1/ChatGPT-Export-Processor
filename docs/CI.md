@@ -18,7 +18,7 @@ The local build commands do not publish. Manual verification-only runs leave art
 
 Validation and packaging request read access to repository contents. Only the final gated publication job receives `contents: write`; it uses the short-lived Actions token. Workflows use GitHub-owned actions pinned to complete commit hashes and disable persisted checkout credentials. They do not use personal access tokens, and pull request code is never executed through `pull_request_target`.
 
-Dependabot proposes npm and GitHub Actions updates. Updates require review and successful validation; they do not merge automatically. Keep exact dependency versions and the lockfile consistent when accepting updates.
+Dependabot groups compatible npm updates into one weekly proposal and GitHub Actions updates into one separate proposal. Updates require review and successful validation; they do not merge automatically. Keep exact dependency versions and the lockfile consistent when accepting updates. ASAR major upgrades are deferred until the build's CommonJS writer integration is migrated and verified.
 
 ## Maintainer checks
 

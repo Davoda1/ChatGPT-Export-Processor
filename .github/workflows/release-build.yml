@@ -44,7 +44,7 @@ jobs:
         env:
           RELEASE_SHA: ${{ github.sha }}
           RELEASE_PUBLISH: ${{ inputs.publish || false }}
-        run: node scripts/publish-release.cjs plan
+        run: node scripts/publish-release.cjs plan >> "$GITHUB_OUTPUT"
 
   validate:
     name: Source and native CI

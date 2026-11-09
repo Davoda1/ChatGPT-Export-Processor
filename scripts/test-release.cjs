@@ -11,6 +11,7 @@ const crc32 = require('crc-32');
 const {verify} = require('./verify-package.cjs');
 const {verifyDocumentation} = require('./package-documentation.cjs');
 const {verifyNativeBinary} = require('./linux-entrypoint.cjs');
+const {withinCheckout} = require('./release-paths.cjs');
 const version = require('../package.json').version;
 
 async function hash(file) {
@@ -124,6 +125,7 @@ async function main() {
   if (args.length === 1 && args[0] === '--installed') return verifyInstalled();
   if (args.length === 1 && args[0] === '--removed') return verifyRemoved();
   if (args.length !== 6 || args[0] !== '--archive' || args[2] !== '--reference' || args[4] !== '--destination') throw new Error('Usage: node scripts/test-release.cjs --archive FILE --reference DIRECTORY --destination NEW_DIRECTORY | --installed | --removed');
-  await verifyArchive(path.resolve(args[1]), path.resolve(args[3]), path.resolve(args[5]));
+  const root = path.resolve(__dirname, '..');
+  await verifyArchive(withinCheckout(root, args[1]), withinCheckout(root, args[3]), withinCheckout(root, args[5], {mustExist: false}));
 }
 main().catch(error => {console.error(error.message); process.exitCode = 1;});

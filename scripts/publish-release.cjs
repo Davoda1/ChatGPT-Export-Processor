@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const {pipeline} = require('node:stream/promises');
 const {execFileSync} = require('node:child_process');
+const {withinCheckout} = require('./release-paths.cjs');
 
 function run(command, args, cwd, options = {}) {
   return execFileSync(command, args, {cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options}).trim();
@@ -141,13 +142,16 @@ async function main() {
   const root = path.resolve(__dirname, '..');
   if (action === 'plan' && !flag) {
     const result = plan(root, process.env.RELEASE_SHA, process.env.GITHUB_EVENT_NAME, process.env.GITHUB_REF, process.env.RELEASE_PUBLISH);
-    if (!process.env.GITHUB_OUTPUT) throw new Error('Workflow output destination is required.');
-    await fsp.appendFile(process.env.GITHUB_OUTPUT, `build=${result.build}\npublish=${result.publish}\n`);
-    console.log(result.build ? 'Selected release verification.' : 'Version already tagged; no release changes.');
+    // The workflow routes these fixed boolean fields to its runner-managed
+    // output file; the script does not accept a writable path from the environment.
+    process.stdout.write(`build=${result.build === true}\npublish=${result.publish === true}\n`);
     return;
   }
   if (!['prepare', 'publish'].includes(action) || flag !== '--assets' || !value || extra.length) throw new Error('Usage: node scripts/publish-release.cjs prepare|publish --assets DIRECTORY');
-  const result = await (action === 'prepare' ? prepare : publish)(root, path.resolve(root, value), process.env.RELEASE_SHA);
+  const directory = withinCheckout(root, value);
+  const dist = path.join(fs.realpathSync(root), 'dist');
+  if (directory !== dist && !directory.startsWith(dist + path.sep)) throw new Error('Release assets must be inside the checkout dist directory.');
+  const result = await (action === 'prepare' ? prepare : publish)(root, directory, process.env.RELEASE_SHA);
   console.log(`${action === 'prepare' ? 'Prepared' : 'Published'} ${result.tag} from verified commit ${result.sha}.`);
 }
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });

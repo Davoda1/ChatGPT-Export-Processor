@@ -21,11 +21,15 @@ const collect = async file => {
 };
 const assetsIn = async file => {
   const html = await fs.readFile(file, 'utf8');
-  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
-  const assetScript = scripts.find(([, attributes]) => /\bid=["']archive-assets["']/i.test(attributes));
-  assert.ok(assetScript, 'generated HTML includes an explicit attachment map');
-  assert.match(assetScript[1], /\btype=["']application\/json["']/i);
-  return JSON.parse(assetScript[2]);
+  // Read the exact generated data element; this is not an HTML sanitizer.
+  // Canonical JSON escapes every '<', so the next tag must close this element.
+  const opening = '<script type="application/json" id="archive-assets">';
+  const start = html.indexOf(opening);
+  assert.notEqual(start, -1, 'generated HTML includes an explicit attachment map');
+  assert.equal(html.indexOf(opening, start + opening.length), -1, 'attachment map is unique');
+  const end = html.indexOf('<', start + opening.length);
+  assert.equal(html.slice(end, end + '</script>'.length), '</script>');
+  return JSON.parse(html.slice(start + opening.length, end));
 };
 
 // Independent ZIP reader checks final archive contents, including nested assets.
