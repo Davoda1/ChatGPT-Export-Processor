@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Repository maintenance
+
+- Locate draft releases through the authenticated release list and publish by numeric release ID, preventing failed tag lookups and duplicate drafts.
+- Distinguish a published release from a tag left by interrupted publication, and add publication retry regression coverage.
+- Update marked to 18.1.3 and refresh its runtime notices. Published 1.1.0 packages remain tied to their original verified source commit.
+
 ## 1.1.0 — Export-format compatibility
 
 - Accept current exports with numbered conversation JSON parts, modern `index.html`, or no `chat.html`; select a consistent export root, including nested folders.
